@@ -3,13 +3,30 @@ import sys
 sys.modules["gym"] = gym #fix gymnasium-gym mismatches in registers
 from clubs_gym import envs
 
-GAME_ID = "Poker-v0"                      
+GAME_ID = "Poker-v0"
 
-#configuration of the simulation
+
+#PARAMETERS FOR THE TOURNAMENT SIMULATION
+
+NUM_PLAYERS = 6
+
+PRIZE_POOL = (450, 270, 180)
+
+HANDS_PER_LEVEL = 10
+
+#in small blind
+BLIND_SCHEDULE = (1, 2, 4, 6, 8, 12, 16, 24) 
+
+START_STACK = 150
+
+START_BLINDS = [1, 2] + [0] * (NUM_PLAYERS - 2)
+
+
+#configuration of the simulation DO NOT TOUCH
 CONFIG = {
-        "num_players": 6,
+        "num_players": NUM_PLAYERS,
         "num_streets": 2,
-        "blinds":      [1, 2, 0, 0, 0, 0],
+        "blinds":      START_BLINDS,
         "antes":       0,
         "raise_sizes": ["inf",0],
         "num_raises":  [1,0],
@@ -19,8 +36,9 @@ CONFIG = {
         "num_community_cards": [0,5],
         "num_cards_for_hand": 5,
         "mandatory_num_hole_cards": 0,
-        "start_stack": 150,
+        "start_stack": START_STACK,
 }
+
 #fix mismatches in different versions of gym
 envs.ClubsEnv.metadata["render_modes"] = envs.ClubsEnv.metadata.pop("render.modes", [])
 

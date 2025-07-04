@@ -1,4 +1,5 @@
 import time
+from simconfig import PRIZE_POOL
 import simulation                      
 import gymnasium as gym      
 import numpy as np
@@ -45,12 +46,7 @@ def moving_average(x, window_size):
     return np.convolve(x, np.ones(window_size)/window_size, mode='valid')
 
 def main():
-    prize_pool = (450, 270, 180)
-    env = simulation.PokerTournament(
-        players=6,
-        prize_pool=prize_pool, 
-        render_mode="ascii"                
-    )
+    env = simulation.PokerTournament()
 
     agents = [AllInAgent(env), FoldAgent(env), RandomAllInFoldAgent(env), AllInPairAgent(env), SuitedAgent(env), TwoHighAgent(env)]
 
@@ -93,7 +89,7 @@ def main():
 
 
     avg_rewards = np.mean(rewards_per_tournament, axis=0)
-    win_count = [np.count_nonzero(reward_per_agent[i] == prize_pool[0]) for i in range(len(agents))]
+    win_count = [np.count_nonzero(reward_per_agent[i] == PRIZE_POOL[0]) for i in range(len(agents))]
     win_rate = [(win / n_tournaments) * 100 for win in win_count]
 
     plt.legend([f"Player {i + 1} : {agent} \n \

@@ -1,5 +1,5 @@
 import simconfig
-from simconfig import GAME_ID
+from simconfig import *
 import gymnasium as gym
 from typing import Sequence, Tuple, Any
 import numpy as np
@@ -26,12 +26,12 @@ class PokerTournament(gym.Env):
 
     def __init__(
         self,
-        players: int = 4,
-        blind_schedule: Sequence[int] = (1, 2, 4, 6, 8, 12, 16, 24),
-        hands_per_level: int = 10,
-        starting_stack_bb: int = 100,
-        prize_pool: Sequence[int] = (500, 300, 100),
-        render_mode: str | None = None,
+        players: int = NUM_PLAYERS,
+        blind_schedule: Sequence[int] = BLIND_SCHEDULE,
+        hands_per_level: int = HANDS_PER_LEVEL,
+        starting_stack_bb: int = START_STACK,
+        prize_pool: Sequence[int] = PRIZE_POOL,
+        render_mode: str | None = "ascii",
     ):
         super().__init__()
 
