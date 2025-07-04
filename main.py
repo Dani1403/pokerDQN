@@ -1,5 +1,5 @@
 import time
-from simconfig import PRIZE_POOL
+from simconfig import PRIZE_POOL, AGENTS
 import simulation                      
 import gymnasium as gym      
 import numpy as np
@@ -48,7 +48,7 @@ def moving_average(x, window_size):
 def main():
     env = simulation.PokerTournament()
 
-    agents = [AllInAgent(env), FoldAgent(env), RandomAllInFoldAgent(env), AllInPairAgent(env), SuitedAgent(env), TwoHighAgent(env)]
+    agents = [agent(env) for agent in AGENTS]
 
     n_tournaments = 1000
 

@@ -2,6 +2,7 @@ import gymnasium as gym
 import sys 
 sys.modules["gym"] = gym #fix gymnasium-gym mismatches in registers
 from clubs_gym import envs
+from poker_agents import *
 
 GAME_ID = "Poker-v0"
 
@@ -20,6 +21,8 @@ BLIND_SCHEDULE = (1, 2, 4, 6, 8, 12, 16, 24)
 START_STACK = 150
 
 START_BLINDS = [1, 2] + [0] * (NUM_PLAYERS - 2)
+
+AGENTS = [AllInAgent, FoldAgent, RandomAllInFoldAgent, AllInPairAgent, SuitedAgent, TwoHighAgent]
 
 
 #configuration of the simulation DO NOT TOUCH
