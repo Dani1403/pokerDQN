@@ -5,6 +5,8 @@ import gymnasium as gym
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import cProfile, pstats, io
+
 
 from poker_agents import *
 
@@ -61,8 +63,7 @@ def moving_average(x, window_size):
 
 
 def plot_results(rewards_per_tournament, hands_played_per_tournament, blinds_end_per_tournament, 
-                 num_all_ins_per_player, num_fold_per_player, agents, n_tournaments):
-    window_size = 50000
+                 num_all_ins_per_player, num_fold_per_player, agents, n_tournaments, window_size):
     reward_per_agent = np.array(rewards_per_tournament).T
     #num_all_ins_per_player = np.array(num_all_ins_per_player).T #change to a per tournament view for each player 
 
@@ -132,16 +133,23 @@ def main():
 
     agents = [agent(env) for agent in AGENTS]
 
-    n_tournaments = 1000000
+    n_tournaments = 10000
+    window_size = 500
 
     rewards_per_tournament, hands_played_per_tournament, \
         blinds_end_per_tournament, num_all_ins_per_player, num_fold_per_player = run_n_tournaments(
             env, agents, n_tournaments)
 
     plot_results(rewards_per_tournament, hands_played_per_tournament, blinds_end_per_tournament, 
-                 num_all_ins_per_player, num_fold_per_player, agents, n_tournaments)
+                 num_all_ins_per_player, num_fold_per_player, agents, n_tournaments, window_size)
 
     env.close()
     
 if __name__ == "__main__":
+    pr = cProfile.Profile()
+    pr.enable()
     main()
+    pr.disable()
+    s = io.StringIO()
+    pstats.Stats(pr, stream=s).strip_dirs().sort_stats("cumtime").print_stats(40)
+    print(s.getvalue())
