@@ -3,26 +3,27 @@ import sys
 sys.modules["gym"] = gym #fix gymnasium-gym mismatches in registers
 from clubs_gym import envs
 from poker_agents import *
+from qagent import QAgent
 
 GAME_ID = "Poker-v0"
 
 
 #PARAMETERS FOR THE TOURNAMENT SIMULATION
 
-NUM_PLAYERS = 6
+NUM_PLAYERS = 3
 
-PRIZE_POOL = (450, 270, 180)
+PRIZE_POOL = (500, 0, 0)
 
-HANDS_PER_LEVEL = 10
+HANDS_PER_LEVEL = 30
 
 #in small blind
-BLIND_SCHEDULE = (1, 2, 4, 6, 8, 12, 16, 24) 
+BLIND_SCHEDULE = (1, 2, 4, 6, 8, 12, 16, 24, 48) 
 
-START_STACK = 150
+START_STACK = 50
 
 START_BLINDS = [1, 2] + [0] * (NUM_PLAYERS - 2)
 
-AGENTS = [AllInAgent, FoldAgent, RandomAllInFoldAgent, AllInPairAgent, SuitedAgent, TwoHighAgent]
+AGENTS = [RandomAllInFoldAgent, RandomAllInFoldAgent, QAgent]
 
 
 #configuration of the simulation DO NOT TOUCH

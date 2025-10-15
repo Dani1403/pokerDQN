@@ -33,45 +33,38 @@ def run_tournament(env, agents):
         #env.render()
         
         for i, agent in enumerate(agents):
-            agent.update_parameters(obs, action, reward[i], next_obs)
+            agent.update_parameters(obs, action, reward[i], next_obs, done)
 
         obs = next_obs
 
     return reward, all_in_count, fold_count
 
-
-
-# Helper: moving average smoothing
-def moving_average(x, window_size):
-    return np.convolve(x, np.ones(window_size)/window_size, mode='valid')
-
-def main():
-    env = simulation.PokerTournament()
-
-    agents = [agent(env) for agent in AGENTS]
-
-    n_tournaments = 1000
-
+def run_n_tournaments(env, agents, n_tournaments):
     rewards_per_tournament = []
     hands_played_per_tournament = []
     blinds_end_per_tournament = []
     num_all_ins_per_player = []
     num_fold_per_player = []
-
     for tournament in tqdm(range(n_tournaments), desc="Running Tournament"):
-
         reward, all_in_count, fold_count = run_tournament(env, agents)
-
         rewards_per_tournament.append(reward)
         hands_played_per_tournament.append(env._hands_played)
         blinds_end_per_tournament.append(env.table.dealer.blinds)
         num_all_ins_per_player.append(all_in_count)
         num_fold_per_player.append(fold_count)
+    return (rewards_per_tournament, hands_played_per_tournament,
+            blinds_end_per_tournament, num_all_ins_per_player, num_fold_per_player)
+
+# Helper: moving average smoothing
+def moving_average(x, window_size):
+    return np.convolve(x, np.ones(window_size)/window_size, mode='valid')
 
 
-    window_size = 50
+def plot_results(rewards_per_tournament, hands_played_per_tournament, blinds_end_per_tournament, 
+                 num_all_ins_per_player, num_fold_per_player, agents, n_tournaments):
+    window_size = 50000
     reward_per_agent = np.array(rewards_per_tournament).T
-    #num_all_ins_per_player = np.array(num_all_ins_per_player).T
+    #num_all_ins_per_player = np.array(num_all_ins_per_player).T #change to a per tournament view for each player 
 
     plt.figure(figsize=(50, 12))
 
@@ -97,7 +90,7 @@ def main():
                   Win rate: {win_rate[i]:.2f}%" \
                for i, agent in enumerate(agents)])    
     plt.grid(True, which='both', axis='y', linestyle='--', alpha=0.4)
-
+    plt.show()
 
     #plot tournament statistics
     # plt.subplot(2, 2, 2)
@@ -134,8 +127,19 @@ def main():
     # plt.grid()
     # plt.tight_layout()
 
+def main():
+    env = simulation.PokerTournament()
 
-    plt.show()
+    agents = [agent(env) for agent in AGENTS]
+
+    n_tournaments = 1000000
+
+    rewards_per_tournament, hands_played_per_tournament, \
+        blinds_end_per_tournament, num_all_ins_per_player, num_fold_per_player = run_n_tournaments(
+            env, agents, n_tournaments)
+
+    plot_results(rewards_per_tournament, hands_played_per_tournament, blinds_end_per_tournament, 
+                 num_all_ins_per_player, num_fold_per_player, agents, n_tournaments)
 
     env.close()
     

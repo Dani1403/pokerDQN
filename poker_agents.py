@@ -9,7 +9,7 @@ class BaseAgent:
         raise NotImplementedError(
             "This method should be overridden by subclasses.")
 
-    def update_parameters(self, obs, action, reward, next_obs):
+    def update_parameters(self, obs, action, reward, next_obs, done):
         pass
 
     def __str__(self):
@@ -22,9 +22,6 @@ class RandomAllInFoldAgent(BaseAgent):
     def act(self, observation) -> int:
         return random.choice([self.env.all_in, self.env.fold])
 
-    def update_parameters(self, obs, action, reward, next_obs):
-        pass
-
 
 class AllInAgent(BaseAgent):
     def __init__(self, env):
@@ -32,9 +29,6 @@ class AllInAgent(BaseAgent):
 
     def act(self, observation) -> int:
         return self.env.all_in
-
-    def update_parameters(self, obs, action, reward, next_obs):
-        pass
 
 
 class FoldAgent(BaseAgent):
@@ -44,8 +38,6 @@ class FoldAgent(BaseAgent):
     def act(self, observation) -> int:
         return self.env.fold
 
-    def update_parameters(self, obs, action, reward, next_obs):
-        pass
 
 
 class AllInPairAgent(BaseAgent):
@@ -60,10 +52,6 @@ class AllInPairAgent(BaseAgent):
         else:
             return self.env.fold
 
-    def update_parameters(self, obs, action, reward, next_obs):
-        pass
-
-
 class AllInHighCardAgent(BaseAgent):
     def __init__(self, env):
         super().__init__(env)
@@ -77,10 +65,6 @@ class AllInHighCardAgent(BaseAgent):
             return self.env.all_in
         else:
             return self.env.fold
-
-    def update_parameters(self, obs, action, reward, next_obs):
-        pass
-
 
 
 class SuitedAgent(BaseAgent):
@@ -107,4 +91,3 @@ class TwoHighAgent(BaseAgent):
             # print("[AGENT] Going all-in with two high cards:", card1, card2)
             return self.env.all_in
         return self.env.fold
-

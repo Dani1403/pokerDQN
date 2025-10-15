@@ -1,0 +1,125 @@
+import numpy as np
+import random
+from clubs.poker.card import CHAR_RANK_TO_INT_RANK
+
+"""Example of an observation dictionary:
+        >>> dealer.step(0)
+        ... ({'action': 0, which player is acting (0 = player 1, 1 = player 2, ...),
+        ...  'active': [True, True],  which player is in the hand or not (True = in, False = out or busted)
+        ...  'button': 1, which player is the dealer (0 = player 1, 1 = player 2, ...),
+        ...  'call': 0, the amount needed to call the current bet,
+        ...  'community_cards': [], the community cards on the table,
+        ...  'hole_cards': [[Card (139879188163600): A (symb heart) ], [Card (139879188163504): A (symb spades)]], the hole cards of the player,
+        ...  'max_raise': 2, the maximum amount that can be raised,
+        ...  'min_raise': 2, the minimum amount that can be raised,
+        ...  'pot': 2, the total amount of chips in the pot,
+        ...  'stacks': [9, 9], the current stacks of each player,
+        ...  'street_commits': [0, 0]}
+
+
+        stacks in blinds (conversion needed)
+        prize pool 
+
+
+        start with small state space with q learning vs all random
+"""
+import numpy as np
+import random
+from clubs.poker.card import CHAR_RANK_TO_INT_RANK
+
+hparams = {
+    'EPS_START': 1.0,
+    'EPS_END': 0.02,
+    'EPS_DECAY': 0.9999,
+    'GAMMA': 0.9999,
+    'LR': 1e-3,
+}
+
+class QAgent:
+    def __init__(self, env):
+        self.env = env
+        self.hparams = hparams
+        self.epsilon = hparams['EPS_START']
+        self.epsilon_end = hparams['EPS_END']
+        self.epsilon_decay = hparams['EPS_DECAY']
+        self.gamma = hparams['GAMMA']
+        self.lr = hparams['LR']
+
+        # --- Ranks normalization ---
+        self.rank_min = min(CHAR_RANK_TO_INT_RANK.values())  # e.g., 2
+        self.rank_max = max(CHAR_RANK_TO_INT_RANK.values())  # e.g., 14
+        self.n_ranks  = self.rank_max - self.rank_min + 1    # e.g., 13
+
+        # --- Big blind & stack caps ---
+        bb = self.env.table.dealer.blinds[1]
+        self.bb = bb
+        start_stack = getattr(self.env, 'start_stack', getattr(self.env, 'max_stack', None))
+        self.max_stack_bb = int(start_stack // bb) + 1  
+
+        # --- Action mapping (ensure consistency) ---
+        self.ACTIONS = ['ALLIN', 'FOLD']               # index 0 -> ALLIN, 1 -> FOLD
+        self.ACTION_TO_ENV = {
+            0: self.env.all_in,
+            1: self.env.fold,
+        }
+
+        # --- Q-table shape ---
+        # [player_idx] (+ [stack_bb per player]) + [low_rank, high_rank, suited] + [action]
+        shape = [env.num_players]
+        #shape += [self.max_stack_bb] * env.num_players
+        shape += [self.n_ranks, self.n_ranks, 2, len(self.ACTIONS)]
+        self.q_table = np.zeros(shape, dtype=np.float32)
+
+    def _encode_hand(self, hand):
+        """Encodes the hand as (low_rank_idx, high_rank_idx, suited_idx) with ranks 0..n_ranks-1."""
+        c1 = CHAR_RANK_TO_INT_RANK[hand[0].rank] - self.rank_min
+        c2 = CHAR_RANK_TO_INT_RANK[hand[1].rank] - self.rank_min
+        low, high = (c1, c2) if c1 <= c2 else (c2, c1)
+        suited = 1 if (hand[0].suit == hand[1].suit) else 0
+        return (low, high, suited)
+
+    def _preprocess_state(self, obs):
+        """Preprocess the observation to get the state representation."""
+        # Normalize stacks to BB and clip to table shape to avoid OOB
+        #stacks_bb = tuple(min(s // self.bb, self.max_stack_bb - 1) for s in obs['stacks'])
+        player_idx = (obs['action'],)
+        hand = self._encode_hand(obs['hole_cards'])
+        #return player_idx + stacks_bb + hand
+        return player_idx + hand
+
+    def act(self, obs):
+        """Select an action based on the current observation."""
+        state = self._preprocess_state(obs)
+        if np.random.rand() < self.epsilon:
+            action_idx = random.choice([0, 1])
+        else:
+            # Greedy over the last dimension (actions)
+            q_vals = self.q_table[state]  # shape: (2,)
+            action_idx = int(np.argmax(q_vals))
+        return self.ACTION_TO_ENV[action_idx]
+
+    def update_parameters(self, obs, action, reward, next_obs=None, done=False):
+        # Map env action back to idx
+        if action == self.env.all_in:
+            action_idx = 0
+        else:
+            action_idx = 1
+
+        state = self._preprocess_state(obs)
+
+        if next_obs is None or next_obs.get('action', -1) == -1:
+            next_max = 0.0
+        else:
+            next_state = self._preprocess_state(next_obs)
+            next_max = float(np.max(self.q_table[next_state]))
+
+        old_value = self.q_table[state + (action_idx,)]
+        target = reward + self.gamma * next_max
+        new_value = old_value + self.lr * (target - old_value)
+        self.q_table[state + (action_idx,)] = new_value
+
+        if done and self.epsilon > self.epsilon_end:
+            self.epsilon *= self.epsilon_decay
+
+    def __str__(self):
+        return self.__class__.__name__

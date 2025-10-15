@@ -29,7 +29,7 @@ class PokerTournament(gym.Env):
         players: int = NUM_PLAYERS,
         blind_schedule: Sequence[int] = BLIND_SCHEDULE,
         hands_per_level: int = HANDS_PER_LEVEL,
-        starting_stack_bb: int = START_STACK,
+        starting_stack: int = START_STACK,
         prize_pool: Sequence[int] = PRIZE_POOL,
         render_mode: str | None = "ascii",
     ):
@@ -47,6 +47,8 @@ class PokerTournament(gym.Env):
         self._prize_pool = prize_pool
 
         self.num_players = self.table.dealer.num_players
+
+        self.max_stack = players * starting_stack
 
         self.all_in = players * self.table.dealer.start_stack
         self.fold = -1
@@ -129,7 +131,7 @@ class PokerTournament(gym.Env):
         game_over = done and (self.table.dealer.stacks.count(0) == self.num_players - 1)
 
         if game_over:
-            #assign bust order to the winner
+            #assign prize pool based on bust order
             winner = self.table.dealer.stacks.index(
                 max(self.table.dealer.stacks))
             if self._bust_order[winner] is None:

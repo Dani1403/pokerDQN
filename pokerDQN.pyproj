@@ -16,6 +16,8 @@
     <InterpreterId>CondaEnv|CondaEnv|rl-gpu</InterpreterId>
     <IsWindowsApplication>False</IsWindowsApplication>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
+    <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
+    <SuppressPackageInstallationPrompt>True</SuppressPackageInstallationPrompt>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -26,8 +28,10 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="dqn_agent.py" />
     <Compile Include="main.py" />
     <Compile Include="poker_agents.py" />
+    <Compile Include="qagent.py" />
     <Compile Include="simconfig.py" />
     <Compile Include="simulation.py" />
   </ItemGroup>
