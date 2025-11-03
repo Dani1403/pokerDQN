@@ -1,3 +1,4 @@
+from turtle import st
 import numpy as np
 import random
 from clubs.poker.card import CHAR_RANK_TO_INT_RANK
@@ -29,10 +30,11 @@ from clubs.poker.card import CHAR_RANK_TO_INT_RANK
 
 hparams = {
     'EPS_START': 1.0,
-    'EPS_END': 0.02,
-    'EPS_DECAY': 0.9999,
+    'EPS_END': 0.05,
+    'EPS_DECAY': 0.9997,
     'GAMMA': 0.9999,
     'LR': 1e-3,
+    'BINS': [0,3,5,10,20,40.999],
 }
 
 class QAgent:
@@ -44,6 +46,7 @@ class QAgent:
         self.epsilon_decay = hparams['EPS_DECAY']
         self.gamma = hparams['GAMMA']
         self.lr = hparams['LR']
+        self.bins = hparams['BINS']
 
         # --- Ranks normalization ---
         self.rank_min = min(CHAR_RANK_TO_INT_RANK.values())  # e.g., 2
@@ -64,11 +67,12 @@ class QAgent:
         }
 
         # --- Q-table shape ---
-        # [player_idx] (+ [stack_bb per player]) + [low_rank, high_rank, suited] + [action]
+        # [player_idx] + [low_rank, high_rank, suited] + [bucketized stack] + num_active + [action]
+        # num active : 0: HU, 1: multiway
         shape = [env.num_players]
-        #shape += [self.max_stack_bb] * env.num_players
-        shape += [self.n_ranks, self.n_ranks, 2, len(self.ACTIONS)]
+        shape += [self.n_ranks, self.n_ranks, 2, len(self.bins)-1, 2, len(self.ACTIONS)]
         self.q_table = np.zeros(shape, dtype=np.float32)
+
 
     def _encode_hand(self, hand):
         """Encodes the hand as (low_rank_idx, high_rank_idx, suited_idx) with ranks 0..n_ranks-1."""
@@ -81,11 +85,20 @@ class QAgent:
     def _preprocess_state(self, obs):
         """Preprocess the observation to get the state representation."""
         # Normalize stacks to BB and clip to table shape to avoid OOB
-        #stacks_bb = tuple(min(s // self.bb, self.max_stack_bb - 1) for s in obs['stacks'])
+        stacks_bb = tuple(min(s // self.bb, self.max_stack_bb - 1) for s in obs['stacks'])
+
+        stack = stacks_bb[obs['action']]
+        
+        bucket = np.digitize(stack, self.bins) - 1
+
+        # Ensure bucket is within valid range
+        bucket = max(0, min(bucket, len(self.bins) - 2))
+
+        num_active = 1 if sum(obs['active']) > 2 else 0
+
         player_idx = (obs['action'],)
         hand = self._encode_hand(obs['hole_cards'])
-        #return player_idx + stacks_bb + hand
-        return player_idx + hand
+        return player_idx + hand + (bucket, num_active)
 
     def act(self, obs):
         """Select an action based on the current observation."""

@@ -1,4 +1,5 @@
 import time
+from qagent import QAgent
 from simconfig import PRIZE_POOL, AGENTS
 import simulation                      
 import gymnasium as gym      
@@ -6,16 +7,19 @@ import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import cProfile, pstats, io
+import sys
 
 
 from poker_agents import *
 
 
-def run_tournament(env, agents):
+def run_tournament(env, agents, evaluate=False):
     obs, _ = env.reset(options={"reset_button": True, "reset_stacks": True})
 
     all_in_count = [0] * env.num_players
     fold_count = [0] * env.num_players
+
+    prev_stacks = obs['stacks'].copy()
 
     done = False
     while not done:
@@ -32,28 +36,39 @@ def run_tournament(env, agents):
 
         next_obs, reward, done, _, _ = env.step(action)
 
+        new_stacks = next_obs['stacks'].copy()
+        stack_diff = [new_stacks[i] - prev_stacks[i]
+                      for i in range(env.num_players)]
+
+        if not done:
+           reward = stack_diff
+           prev_stacks = new_stacks
+
         #env.render()
         
-        for i, agent in enumerate(agents):
-            agent.update_parameters(obs, action, reward[i], next_obs, done)
+        if not evaluate:
+            for i, agent in enumerate(agents):
+                if isinstance(agent, QAgent):
+                    agent.update_parameters(obs, action, reward[i], next_obs, done)
 
         obs = next_obs
 
     return reward, all_in_count, fold_count
 
-def run_n_tournaments(env, agents, n_tournaments):
+def run_n_tournaments(env, agents, n_tournaments, evaluate=False):
     rewards_per_tournament = []
     hands_played_per_tournament = []
     blinds_end_per_tournament = []
     num_all_ins_per_player = []
     num_fold_per_player = []
-    for tournament in tqdm(range(n_tournaments), desc="Running Tournament"):
-        reward, all_in_count, fold_count = run_tournament(env, agents)
-        rewards_per_tournament.append(reward)
-        hands_played_per_tournament.append(env._hands_played)
-        blinds_end_per_tournament.append(env.table.dealer.blinds)
-        num_all_ins_per_player.append(all_in_count)
-        num_fold_per_player.append(fold_count)
+    for tournament in tqdm(range(n_tournaments), desc="Running Tournament", ascii=True, ncols=80):
+        reward, all_in_count, fold_count = run_tournament(env, agents, evaluate)
+        if evaluate:
+            rewards_per_tournament.append(reward)
+            hands_played_per_tournament.append(env._hands_played)
+            blinds_end_per_tournament.append(env.table.dealer.blinds)
+            num_all_ins_per_player.append(all_in_count)
+            num_fold_per_player.append(fold_count)
     return (rewards_per_tournament, hands_played_per_tournament,
             blinds_end_per_tournament, num_all_ins_per_player, num_fold_per_player)
 
@@ -93,7 +108,7 @@ def plot_results(rewards_per_tournament, hands_played_per_tournament, blinds_end
     plt.grid(True, which='both', axis='y', linestyle='--', alpha=0.4)
     plt.show()
 
-    #plot tournament statistics
+    #plot tournament statistics     
     # plt.subplot(2, 2, 2)
     # plt.plot(range(n_tournaments), hands_played_per_tournament, marker='o')
     # plt.title("Hands Played per Tournament in Poker Simulation")
@@ -129,19 +144,27 @@ def plot_results(rewards_per_tournament, hands_played_per_tournament, blinds_end
     # plt.tight_layout()
 
 def main():
+    
     env = simulation.PokerTournament()
 
     agents = [agent(env) for agent in AGENTS]
 
-    n_tournaments = 10000000
-    window_size   = 100000
+    n_tournaments = 200000
+    window_size   = 5000
+
+    run_n_tournaments(env, agents, n_tournaments, evaluate=False)
+
+    # Set agents to evaluation mode 
+    for a in agents:
+        if hasattr(a, "epsilon"):
+            a.epsilon = 0.0
 
     rewards_per_tournament, hands_played_per_tournament, \
         blinds_end_per_tournament, num_all_ins_per_player, num_fold_per_player = run_n_tournaments(
-            env, agents, n_tournaments)
+            env, agents, n_tournaments//5, evaluate=True)
 
     plot_results(rewards_per_tournament, hands_played_per_tournament, blinds_end_per_tournament, 
-                 num_all_ins_per_player, num_fold_per_player, agents, n_tournaments, window_size)
+                 num_all_ins_per_player, num_fold_per_player, agents, n_tournaments//5, window_size)
 
     env.close()
     

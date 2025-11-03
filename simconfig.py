@@ -12,7 +12,7 @@ GAME_ID = "Poker-v0"
 
 NUM_PLAYERS = 3
 
-PRIZE_POOL = (500, 200, 0)
+PRIZE_POOL = (400, 300, 200)
 
 HANDS_PER_LEVEL = 30
 
@@ -23,7 +23,7 @@ START_STACK = 50
 
 START_BLINDS = [1, 2] + [0] * (NUM_PLAYERS - 2)
 
-AGENTS = [RandomAllInFoldAgent, RandomAllInFoldAgent, QAgent]
+AGENTS = [QAgent, AllInAgent, FoldAgent]
 
 
 #configuration of the simulation DO NOT TOUCH
