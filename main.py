@@ -133,8 +133,8 @@ def main():
 
     agents = [agent(env) for agent in AGENTS]
 
-    n_tournaments = 10000
-    window_size = 500
+    n_tournaments = 10000000
+    window_size   = 100000
 
     rewards_per_tournament, hands_played_per_tournament, \
         blinds_end_per_tournament, num_all_ins_per_player, num_fold_per_player = run_n_tournaments(

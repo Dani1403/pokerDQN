@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: clubs
+Version: 1.0.0
+Summary: Custom optimized poker engine
+Requires-Python: >=3.9

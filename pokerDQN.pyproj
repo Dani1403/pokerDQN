@@ -13,11 +13,14 @@
     <Name>pokerDQN</Name>
     <RootNamespace>testRL</RootNamespace>
     <TestFramework>Pytest</TestFramework>
-    <InterpreterId>CondaEnv|CondaEnv|rl-gpu</InterpreterId>
+    <InterpreterId>CondaEnv|CondaEnv|poker-pypy</InterpreterId>
     <IsWindowsApplication>False</IsWindowsApplication>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
     <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
     <SuppressPackageInstallationPrompt>True</SuppressPackageInstallationPrompt>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <InterpreterPath>C:\Users\danis\anaconda3\envs\poker-pypy\python.exe</InterpreterPath>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -28,6 +31,17 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="clubs\configs.py" />
+    <Compile Include="clubs\error.py" />
+    <Compile Include="clubs\poker\card.py" />
+    <Compile Include="clubs\poker\engine.py" />
+    <Compile Include="clubs\poker\evaluator.py" />
+    <Compile Include="clubs\poker\__init__.py" />
+    <Compile Include="clubs\render\ascii_viewer.py" />
+    <Compile Include="clubs\render\graphic.py" />
+    <Compile Include="clubs\render\viewer.py" />
+    <Compile Include="clubs\render\__init__.py" />
+    <Compile Include="clubs\__init__.py" />
     <Compile Include="dqn_agent.py" />
     <Compile Include="main.py" />
     <Compile Include="poker_agents.py" />
@@ -36,11 +50,51 @@
     <Compile Include="simulation.py" />
   </ItemGroup>
   <ItemGroup>
+    <InterpreterReference Include="CondaEnv|CondaEnv|poker-pypy" />
     <InterpreterReference Include="CondaEnv|CondaEnv|rl-gpu" />
     <InterpreterReference Include="CondaEnv|CondaEnv|tests" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="clubs\poker\README.md" />
+    <Content Include="clubs\poker\__pycache__\card.cpython-310.pyc" />
+    <Content Include="clubs\poker\__pycache__\engine.cpython-310.pyc" />
+    <Content Include="clubs\poker\__pycache__\evaluator.cpython-310.pyc" />
+    <Content Include="clubs\poker\__pycache__\__init__.cpython-310.pyc" />
+    <Content Include="clubs\render\ascii_table.txt" />
+    <Content Include="clubs\render\resources\static\images\base.svg" />
+    <Content Include="clubs\render\resources\static\images\black_red_logo.svg" />
+    <Content Include="clubs\render\resources\static\images\card.svg" />
+    <Content Include="clubs\render\resources\static\images\patterns.svg" />
+    <Content Include="clubs\render\resources\static\images\player.svg" />
+    <Content Include="clubs\render\resources\static\images\render_example.png" />
+    <Content Include="clubs\render\resources\static\images\street_commit.svg" />
+    <Content Include="clubs\render\resources\static\images\table.svg" />
+    <Content Include="clubs\render\resources\static\parse_config.js" />
+    <Content Include="clubs\render\resources\static\styles\style.css" />
+    <Content Include="clubs\render\resources\templates\base.html" />
+    <Content Include="clubs\render\resources\templates\index.html" />
+    <Content Include="clubs\render\__pycache__\ascii_viewer.cpython-310.pyc" />
+    <Content Include="clubs\render\__pycache__\graphic.cpython-310.pyc" />
+    <Content Include="clubs\render\__pycache__\viewer.cpython-310.pyc" />
+    <Content Include="clubs\render\__pycache__\__init__.cpython-310.pyc" />
+    <Content Include="clubs\__pycache__\configs.cpython-310.pyc" />
+    <Content Include="clubs\__pycache__\error.cpython-310.pyc" />
+    <Content Include="clubs\__pycache__\__init__.cpython-310.pyc" />
+    <Content Include="pyproject.toml" />
     <Content Include="requirements.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="clubs\" />
+    <Folder Include="clubs\poker\" />
+    <Folder Include="clubs\poker\__pycache__\" />
+    <Folder Include="clubs\render\" />
+    <Folder Include="clubs\render\resources\" />
+    <Folder Include="clubs\render\resources\static\" />
+    <Folder Include="clubs\render\resources\static\images\" />
+    <Folder Include="clubs\render\resources\static\styles\" />
+    <Folder Include="clubs\render\resources\templates\" />
+    <Folder Include="clubs\render\__pycache__\" />
+    <Folder Include="clubs\__pycache__\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

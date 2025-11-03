@@ -1,7 +1,7 @@
 import simconfig
 from simconfig import *
 import gymnasium as gym
-from typing import Sequence, Tuple, Any
+from typing import Sequence, Tuple, Any, Union
 import numpy as np
 from collections import defaultdict
 
@@ -31,7 +31,7 @@ class PokerTournament(gym.Env):
         hands_per_level: int = HANDS_PER_LEVEL,
         starting_stack: int = START_STACK,
         prize_pool: Sequence[int] = PRIZE_POOL,
-        render_mode: str | None = "ascii",
+        render_mode: Union[str, None] = "ascii",
     ):
         super().__init__()
 
@@ -70,8 +70,8 @@ class PokerTournament(gym.Env):
     def reset(
         self,
         *,
-        seed: int | None = None,
-        options: dict | None = None
+        seed: Union[int, None] = None,
+        options: Union[dict, None] = None
     ) -> Tuple[Any, dict]:
 
         super().reset(seed=seed)
@@ -104,7 +104,7 @@ class PokerTournament(gym.Env):
             - truncated: Whether the episode has been truncated.
             - info: Additional information about the step.
     """
-    def step(self, action: int) -> Tuple[Any, float | list[float], bool, bool, dict]:
+    def step(self, action: int) -> Tuple[Any, Union[float, list[float]], bool, bool, dict]:
 
         
         obs, rewards, done, _ = self.table.step(action)
