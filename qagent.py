@@ -17,16 +17,8 @@ from clubs.poker.card import CHAR_RANK_TO_INT_RANK
         ...  'stacks': [9, 9], the current stacks of each player,
         ...  'street_commits': [0, 0]}
 
-
-        stacks in blinds (conversion needed)
-        prize pool 
-
-
         start with small state space with q learning vs all random
 """
-import numpy as np
-import random
-from clubs.poker.card import CHAR_RANK_TO_INT_RANK
 
 hparams = {
     'EPS_START': 1.0,
@@ -34,7 +26,7 @@ hparams = {
     'EPS_DECAY': 0.9997,
     'GAMMA': 0.9999,
     'LR': 1e-3,
-    'BINS': [0,3,5,10,20,40.999],
+    'BINS': [0,3,5,10,20,40,999],
 }
 
 class QAgent:
@@ -49,9 +41,9 @@ class QAgent:
         self.bins = hparams['BINS']
 
         # --- Ranks normalization ---
-        self.rank_min = min(CHAR_RANK_TO_INT_RANK.values())  # e.g., 2
-        self.rank_max = max(CHAR_RANK_TO_INT_RANK.values())  # e.g., 14
-        self.n_ranks  = self.rank_max - self.rank_min + 1    # e.g., 13
+        self.rank_min = min(CHAR_RANK_TO_INT_RANK.values())  
+        self.rank_max = max(CHAR_RANK_TO_INT_RANK.values()) 
+        self.n_ranks  = self.rank_max - self.rank_min + 1    
 
         # --- Big blind & stack caps ---
         bb = self.env.table.dealer.blinds[1]
@@ -91,7 +83,6 @@ class QAgent:
         
         bucket = np.digitize(stack, self.bins) - 1
 
-        # Ensure bucket is within valid range
         bucket = max(0, min(bucket, len(self.bins) - 2))
 
         num_active = 1 if sum(obs['active']) > 2 else 0
@@ -106,13 +97,11 @@ class QAgent:
         if np.random.rand() < self.epsilon:
             action_idx = random.choice([0, 1])
         else:
-            # Greedy over the last dimension (actions)
-            q_vals = self.q_table[state]  # shape: (2,)
+            q_vals = self.q_table[state]  
             action_idx = int(np.argmax(q_vals))
         return self.ACTION_TO_ENV[action_idx]
 
     def update_parameters(self, obs, action, reward, next_obs=None, done=False):
-        # Map env action back to idx
         if action == self.env.all_in:
             action_idx = 0
         else:

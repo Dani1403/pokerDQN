@@ -23,7 +23,7 @@ START_STACK = 50
 
 START_BLINDS = [1, 2] + [0] * (NUM_PLAYERS - 2)
 
-AGENTS = [QAgent, AllInAgent, FoldAgent]
+AGENTS = [QAgent, RandomAllInFoldAgent, RandomAllInFoldAgent]
 
 
 #configuration of the simulation DO NOT TOUCH
