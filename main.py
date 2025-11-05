@@ -124,16 +124,11 @@ def main():
     TRAINING_POOL = [
         SuitedAgent,
         AllInAgent,
-        RandomAllInFoldAgent
+        FoldAgent,
+        TwoHighAgent
     ]
 
-    n_tournaments_learn = 200_000
-
-    run_n_tournaments(env, q, n_tournaments_learn, evaluate=False, training_pool=TRAINING_POOL)
-
-    TRAINING_POOL= [AllInPairAgent]
-
-    n_tournaments_learn = 200_000
+    n_tournaments_learn = 500_000
 
     run_n_tournaments(env, q, n_tournaments_learn, evaluate=False, training_pool=TRAINING_POOL)
 
@@ -144,9 +139,9 @@ def main():
     window_size = max(50, n_tournaments_evaluate // 20)
 
     EVALUATION_LINEUPS = [ 
-        [q, AllInPairAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)],
+        [q, FoldAgent(env), TwoHighAgent(env), RandomAllInFoldAgent(env)],
         [q, SuitedAgent(env), AllInAgent(env), RandomAllInFoldAgent(env)],
-        [q, AllInPairAgent(env), SuitedAgent(env), AllInAgent(env)]
+        [q, FoldAgent(env), SuitedAgent(env), AllInAgent(env)]
     ]
 
     num_lineups = len(EVALUATION_LINEUPS)

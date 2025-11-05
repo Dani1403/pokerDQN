@@ -21,8 +21,8 @@ from clubs.poker.card import CHAR_RANK_TO_INT_RANK
 
 hparams = {
     'EPS_START': 1.0,
-    'EPS_END': 0.1,
-    'EPS_DECAY': 0.99999,
+    'EPS_END': 0.05,
+    'EPS_DECAY': 0.9995,
     'GAMMA': 0.99,
     'LR': 1e-3,
     'BINS': [0,3,5,10,20,40,999],
@@ -63,8 +63,8 @@ class QAgent:
                  self.n_ranks,     # high card rank
                  2,                # suited or not
                  len(self.bins)-1,  # bucketized stack
-                 #2,                # bool : 0 - player not shortest stack / 1 - player is shortest stack
-                 #env.num_players,  # num active players -1 :
+                 2,                # bool : 0 - player not shortest stack / 1 - player is shortest stack
+                 env.num_players,  # num active players -1 :
                  len(self.ACTIONS)]
         self.q_table = np.zeros(shape, dtype=np.float32)
 
@@ -101,7 +101,7 @@ class QAgent:
 
         player_idx = (obs['action'],)
         hand = self._encode_hand(obs['hole_cards'])
-        return player_idx + hand + (bucket,) #shortest, num_active)
+        return player_idx + hand + (bucket, shortest, num_active)
 
     def act(self, obs):
         """Select an action based on the current observation."""
