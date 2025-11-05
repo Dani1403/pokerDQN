@@ -82,12 +82,14 @@ def plot_results(rewards_per_tournament, agents, n_tournaments, window_size):
     x_ticks_spacing = max(1, n_tournaments // 10)
     plt.xticks(ticks = range(0,n_tournaments,x_ticks_spacing), rotation=45)
 
-    avg_rewards = np.mean(rewards_per_tournament, axis=0)
+    avg_rewards = reward_per_agent.mean(axis=1)
 
-    plt.legend([f"Player {i + 1} : {agent} \n \
+    n_agents = min(len(agents), len(avg_rewards), len(placement_summary))   
+
+    plt.legend([f"Player {i + 1} : {agents[i]} \n \
                   Average reward: {avg_rewards[i]:.2f} \n \
                   Placements: {placement_summary[i]}"
-               for i, agent in enumerate(agents)])    
+               for i in range(n_agents)]),
     plt.grid(True, which='both', axis='y', linestyle='--', alpha=0.4)
     plt.show()
 
@@ -99,7 +101,6 @@ def main():
     agents = [agent(env) for agent in AGENTS]
 
     n_tournaments_learn = 200000
-    window_size   = 5000
 
     run_n_tournaments(env, agents, n_tournaments_learn, evaluate=False)
 
@@ -108,6 +109,7 @@ def main():
             a.epsilon = 0.0
 
     n_tournaments_evaluate = n_tournaments_learn // 5
+    window_size = n_tournaments_evaluate // 20
 
     rewards_per_tournament = run_n_tournaments(
             env, agents, n_tournaments_evaluate, evaluate=True)

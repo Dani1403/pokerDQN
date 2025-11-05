@@ -1,4 +1,3 @@
-from turtle import st
 import numpy as np
 import random
 from clubs.poker.card import CHAR_RANK_TO_INT_RANK
@@ -24,7 +23,7 @@ hparams = {
     'EPS_START': 1.0,
     'EPS_END': 0.05,
     'EPS_DECAY': 0.9997,
-    'GAMMA': 0.9999,
+    'GAMMA': 0.99,
     'LR': 1e-3,
     'BINS': [0,3,5,10,20,40,999],
 }
@@ -60,9 +59,9 @@ class QAgent:
 
         # --- Q-table shape ---
         # [player_idx] + [low_rank, high_rank, suited] + [bucketized stack] + num_active + [action]
-        # num active : 0: HU, 1: multiway
+        # num active : 0: HU, 1: two way, 2: three way, 3: four way
         shape = [env.num_players]
-        shape += [self.n_ranks, self.n_ranks, 2, len(self.bins)-1, 2, len(self.ACTIONS)]
+        shape += [self.n_ranks, self.n_ranks, 2, len(self.bins)-1, env.num_players, len(self.ACTIONS)]
         self.q_table = np.zeros(shape, dtype=np.float32)
 
 
@@ -85,7 +84,8 @@ class QAgent:
 
         bucket = max(0, min(bucket, len(self.bins) - 2))
 
-        num_active = 1 if sum(obs['active']) > 2 else 0
+        num_active = sum(obs['active']) - 1
+        #num_active = 1 if sum(obs['active']) > 2 else 0
 
         player_idx = (obs['action'],)
         hand = self._encode_hand(obs['hole_cards'])
