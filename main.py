@@ -49,8 +49,27 @@ def run_n_tournaments(env, agents, n_tournaments, evaluate=False):
 def moving_average(x, window_size):
     return np.convolve(x, np.ones(window_size)/window_size, mode='valid')
 
+
+def placements(rewards_per_tournament):
+    arr = np.array(rewards_per_tournament)
+    ranks = np.argsort(np.argsort(-arr, axis=1), axis=1) + 1
+    placements = ranks.T
+    placement_summary = []
+    for i in range(placements.shape[0]):
+        unique, counts = np.unique(placements[i], return_counts=True)
+        percentages = 100 * counts / placements.shape[1]
+        summary = dict(zip(unique, percentages))
+        summary_str = " ".join(
+            [f"{place}: {percent:.2f}%" for place, percent in summary.items()])
+        placement_summary.append(summary_str)
+
+    return placement_summary
+    
+
+
 def plot_results(rewards_per_tournament, agents, n_tournaments, window_size):
     reward_per_agent = np.array(rewards_per_tournament).T
+    placement_summary = placements(rewards_per_tournament)
 
     plt.figure(figsize=(50, 12))
 
@@ -64,12 +83,10 @@ def plot_results(rewards_per_tournament, agents, n_tournaments, window_size):
     plt.xticks(ticks = range(0,n_tournaments,x_ticks_spacing), rotation=45)
 
     avg_rewards = np.mean(rewards_per_tournament, axis=0)
-    win_count = [np.count_nonzero(reward_per_agent[i] == PRIZE_POOL[0]) for i in range(len(agents))]
-    win_rate = [(win / n_tournaments) * 100 for win in win_count]
 
     plt.legend([f"Player {i + 1} : {agent} \n \
                   Average reward: {avg_rewards[i]:.2f} \n \
-                  Win rate: {win_rate[i]:.2f}%" \
+                  Placements: {placement_summary[i]}"
                for i, agent in enumerate(agents)])    
     plt.grid(True, which='both', axis='y', linestyle='--', alpha=0.4)
     plt.show()
@@ -81,7 +98,7 @@ def main():
 
     agents = [agent(env) for agent in AGENTS]
 
-    n_tournaments_learn = 100000
+    n_tournaments_learn = 200000
     window_size   = 5000
 
     run_n_tournaments(env, agents, n_tournaments_learn, evaluate=False)
