@@ -14,9 +14,6 @@ NUM_PLAYERS = 4
 
 PRIZE_POOL = (400, 300, 200, 100)
 
-AGENTS = [QAgent, RandomAllInFoldAgent, RandomAllInFoldAgent, RandomAllInFoldAgent]
-
-
 HANDS_PER_LEVEL = 30
 
 #in small blind

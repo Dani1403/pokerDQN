@@ -1,6 +1,6 @@
 import time
 from qagent import QAgent
-from simconfig import PRIZE_POOL, AGENTS
+from simconfig import PRIZE_POOL
 import simulation                      
 import gymnasium as gym      
 import numpy as np
@@ -38,12 +38,34 @@ def run_tournament(env, agents, evaluate=False):
 
     return reward
 
-def run_n_tournaments(env, agents, n_tournaments, evaluate=False):
+
+def training_table(env, q, pool):
+    agents = [q]
+    for _ in range(env.num_players - 1) :
+        Opponent = random.choice(pool)
+        agents.append(Opponent(env))
+
+    return agents
+
+def run_n_tournaments(env, qagent, n_tournaments, evaluate=False, fixed_lineup=None, training_pool=None):
+
     rewards_per_tournament = []
-    for tournament in tqdm(range(n_tournaments), desc="Running Tournament", ascii=True, ncols=80):
+
+    for _ in tqdm(range(n_tournaments), desc="Running Tournament", ascii=True, ncols=80):
+
+        if evaluate:
+            agents = fixed_lineup
+            for agent in agents:
+                if hasattr(agent, "epsilon"):
+                    agent.epsilon = 0.0
+        else:
+            agents = training_table(env, qagent, training_pool)
+
         reward = run_tournament(env, agents, evaluate)
+
         if evaluate:
             rewards_per_tournament.append(reward)
+
     return rewards_per_tournament
 
 def moving_average(x, window_size):
@@ -67,54 +89,82 @@ def placements(rewards_per_tournament):
     
 
 
-def plot_results(rewards_per_tournament, agents, n_tournaments, window_size):
+def plot_results(rewards_per_tournament, agents, n_tournaments, window_size, ax):
     reward_per_agent = np.array(rewards_per_tournament).T
     placement_summary = placements(rewards_per_tournament)
 
-    plt.figure(figsize=(50, 12))
-
     for i, rewards in enumerate(reward_per_agent):
         smoothed = moving_average(rewards, window_size)
-        plt.plot(range(window_size - 1, n_tournaments), smoothed, linewidth=2, label=f"Player {i + 1}")
-    plt.title("Rewards per Tournament in Poker Simulation")
-    plt.xlabel("Tournament")
-    plt.ylabel("Rewards")
+        ax.plot(range(window_size - 1, n_tournaments), smoothed, linewidth=2, label=f"Player {i + 1}")
+    ax.set_title("Rewards per Tournament in Poker Simulation")
+    ax.set_xlabel("Tournament")
+    ax.set_ylabel("Rewards")
     x_ticks_spacing = max(1, n_tournaments // 10)
-    plt.xticks(ticks = range(0,n_tournaments,x_ticks_spacing), rotation=45)
+    ax.set_xticks(ticks = range(0,n_tournaments,x_ticks_spacing))
 
     avg_rewards = reward_per_agent.mean(axis=1)
 
     n_agents = min(len(agents), len(avg_rewards), len(placement_summary))   
 
-    plt.legend([f"Player {i + 1} : {agents[i]} \n \
+    ax.legend([f"Player {i + 1} : {agents[i]} \n \
                   Average reward: {avg_rewards[i]:.2f} \n \
                   Placements: {placement_summary[i]}"
                for i in range(n_agents)]),
-    plt.grid(True, which='both', axis='y', linestyle='--', alpha=0.4)
-    plt.show()
+    ax.grid(True, which='both', axis='y', linestyle='--', alpha=0.4) 
 
 
 def main():
-    
+
     env = simulation.PokerTournament()
 
-    agents = [agent(env) for agent in AGENTS]
+    q = QAgent(env)
 
-    n_tournaments_learn = 200000
+    #TRAIN
 
-    run_n_tournaments(env, agents, n_tournaments_learn, evaluate=False)
+    TRAINING_POOL = [
+        SuitedAgent,
+        AllInAgent,
+        RandomAllInFoldAgent
+    ]
 
-    for a in agents:
-        if hasattr(a, "epsilon"):
-            a.epsilon = 0.0
+    n_tournaments_learn = 200_000
 
-    n_tournaments_evaluate = n_tournaments_learn // 5
-    window_size = n_tournaments_evaluate // 20
+    run_n_tournaments(env, q, n_tournaments_learn, evaluate=False, training_pool=TRAINING_POOL)
 
-    rewards_per_tournament = run_n_tournaments(
-            env, agents, n_tournaments_evaluate, evaluate=True)
+    TRAINING_POOL= [AllInPairAgent]
 
-    plot_results(rewards_per_tournament, agents, n_tournaments_evaluate, window_size)
+    n_tournaments_learn = 200_000
+
+    run_n_tournaments(env, q, n_tournaments_learn, evaluate=False, training_pool=TRAINING_POOL)
+
+
+    #EVALUATE
+
+    n_tournaments_evaluate = 10_000
+    window_size = max(50, n_tournaments_evaluate // 20)
+
+    EVALUATION_LINEUPS = [ 
+        [q, AllInPairAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)],
+        [q, SuitedAgent(env), AllInAgent(env), RandomAllInFoldAgent(env)],
+        [q, AllInPairAgent(env), SuitedAgent(env), AllInAgent(env)]
+    ]
+
+    num_lineups = len(EVALUATION_LINEUPS)
+
+    fig, axes = plt.subplots(num_lineups, 1, figsize=(50,12), sharex=True)
+
+    if num_lineups == 1:
+        axes = [axes]
+
+    for ax, lineup in zip(axes, EVALUATION_LINEUPS):
+        rewards_per_tournament = run_n_tournaments(
+                env, q, n_tournaments_evaluate, evaluate=True, fixed_lineup=lineup)
+
+        plot_results(rewards_per_tournament, lineup, n_tournaments_evaluate, window_size, ax)
+
+    plt.tight_layout()
+    plt.show()
+
 
     env.close()
     

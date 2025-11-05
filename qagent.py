@@ -21,8 +21,8 @@ from clubs.poker.card import CHAR_RANK_TO_INT_RANK
 
 hparams = {
     'EPS_START': 1.0,
-    'EPS_END': 0.05,
-    'EPS_DECAY': 0.9997,
+    'EPS_END': 0.1,
+    'EPS_DECAY': 0.99999,
     'GAMMA': 0.99,
     'LR': 1e-3,
     'BINS': [0,3,5,10,20,40,999],
@@ -58,10 +58,14 @@ class QAgent:
         }
 
         # --- Q-table shape ---
-        # [player_idx] + [low_rank, high_rank, suited] + [bucketized stack] + num_active + [action]
-        # num active : 0: HU, 1: two way, 2: three way, 3: four way
-        shape = [env.num_players]
-        shape += [self.n_ranks, self.n_ranks, 2, len(self.bins)-1, env.num_players, len(self.ACTIONS)]
+        shape = [env.num_players,  # position of player
+                 self.n_ranks,     # low card rank
+                 self.n_ranks,     # high card rank
+                 2,                # suited or not
+                 len(self.bins)-1,  # bucketized stack
+                 #2,                # bool : 0 - player not shortest stack / 1 - player is shortest stack
+                 #env.num_players,  # num active players -1 :
+                 len(self.ACTIONS)]
         self.q_table = np.zeros(shape, dtype=np.float32)
 
 
@@ -84,12 +88,20 @@ class QAgent:
 
         bucket = max(0, min(bucket, len(self.bins) - 2))
 
+        shortest = 1  # assume is shortest
+
+        other_stacks = [stacks_bb[i] for i in range(
+            len(stacks_bb)) if i != obs['action'] and obs['active'][i]]
+        if other_stacks:
+            shortest_other = min(other_stacks)
+            if shortest_other < stack:
+                shortest = 0
+
         num_active = sum(obs['active']) - 1
-        #num_active = 1 if sum(obs['active']) > 2 else 0
 
         player_idx = (obs['action'],)
         hand = self._encode_hand(obs['hole_cards'])
-        return player_idx + hand + (bucket, num_active)
+        return player_idx + hand + (bucket,) #shortest, num_active)
 
     def act(self, obs):
         """Select an action based on the current observation."""
