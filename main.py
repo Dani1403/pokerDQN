@@ -81,7 +81,7 @@ def main():
 
     agents = [agent(env) for agent in AGENTS]
 
-    n_tournaments_learn = 200000
+    n_tournaments_learn = 100000
     window_size   = 5000
 
     run_n_tournaments(env, agents, n_tournaments_learn, evaluate=False)
@@ -100,10 +100,10 @@ def main():
     env.close()
     
 if __name__ == "__main__":
-    pr = cProfile.Profile()
-    pr.enable()
+    #pr = cProfile.Profile()
+    #pr.enable()
     main()
-    pr.disable()
-    s = io.StringIO()
-    pstats.Stats(pr, stream=s).strip_dirs().sort_stats("cumtime").print_stats(40)
-    print(s.getvalue())
+    #pr.disable()
+    #s = io.StringIO()
+    #pstats.Stats(pr, stream=s).strip_dirs().sort_stats("cumtime").print_stats(40)
+    #print(s.getvalue())
