@@ -1,6 +1,7 @@
-clubs
 clubs_gym
 gymnasium
 numpy
 matplotlib
 tqdm
+typing_extensions
+pillow
