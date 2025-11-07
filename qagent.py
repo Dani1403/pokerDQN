@@ -22,7 +22,7 @@ from clubs.poker.card import CHAR_RANK_TO_INT_RANK
 hparams = {
     'EPS_START': 1.0,
     'EPS_END': 0.05,
-    'EPS_DECAY': 0.9995,
+    'EPS_DECAY': 0.99995,
     'GAMMA': 0.99,
     'LR': 1e-3,
     'BINS': [0,3,5,10,20,40,999],
