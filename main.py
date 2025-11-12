@@ -27,6 +27,8 @@ def run_tournament(env, agents, evaluate=False):
 
         if not done:
            reward = stack_diff
+           #normalize reward to big blind units
+           reward = [min(r // env.table.dealer.blinds[1], env.max_stack - 1) for r in reward]
         
         if not evaluate:
             for i, agent in enumerate(agents):
@@ -47,19 +49,25 @@ def training_table(env, q, pool):
 
     return agents
 
+
+""" must provide a fixed lineup OR a training pool """
 def run_n_tournaments(env, qagent, n_tournaments, evaluate=False, fixed_lineup=None, training_pool=None):
 
     rewards_per_tournament = []
 
     for _ in tqdm(range(n_tournaments), desc="Running Tournament", ascii=True, ncols=80):
 
+        if fixed_lineup:
+            agents = fixed_lineup
+
+        else:
+            agents = training_table(env, qagent, training_pool)
+
         if evaluate:
             agents = fixed_lineup
             for agent in agents:
                 if hasattr(agent, "epsilon"):
                     agent.epsilon = 0.0
-        else:
-            agents = training_table(env, qagent, training_pool)
 
         reward = run_tournament(env, agents, evaluate)
 
@@ -121,28 +129,14 @@ def main():
 
     #TRAIN
 
-    TRAINING_POOL = [RandomAllInFoldAgent]
-
-    n_tournaments_learn = 300_000
-
-    run_n_tournaments(env, q, n_tournaments_learn, evaluate=False, training_pool=TRAINING_POOL)
-
-    TRAINING_POOL = [ AllInPairAgent, AllInAgent, RandomAllInFoldAgent]
-
-    n_tournaments_learn = 200_000
-
-    run_n_tournaments(env, q, n_tournaments_learn, evaluate=False, training_pool=TRAINING_POOL)
-
-    TRAINING_POOL = [ AllInPairAgent]
-
-    n_tournaments_learn = 100_000
-
-    run_n_tournaments(env, q, n_tournaments_learn, evaluate=False, training_pool=TRAINING_POOL)
+    n_tournaments_learn = 100
+    lineup = [q,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
+    run_n_tournaments(env, q, n_tournaments_learn, evaluate=False, training_pool=None, fixed_lineup=lineup)
 
 
     #EVALUATE
 
-    n_tournaments_evaluate = 10_000
+    n_tournaments_evaluate = 100
     window_size = max(50, n_tournaments_evaluate // 20)
 
     EVALUATION_LINEUPS = [ 
