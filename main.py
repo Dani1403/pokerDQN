@@ -119,7 +119,7 @@ def plot_results(rewards_per_tournament, agents, n_tournaments, window_size, ax)
                   Average reward: {avg_rewards[i]:.2f} \n \
                   Placements: {placement_summary[i]}"
                for i in range(n_agents)]),
-    ax.grid(True, which='both', axis='y', linestyle='--', alpha=0.4) 
+    ax.grid(True, which='both', axis='y', linestyle='--', alpha=0.4)
 
 
 def main():
@@ -130,21 +130,18 @@ def main():
 
     #TRAIN
 
-    n_tournaments_learn = 100
-    lineup = [q,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
-    run_n_tournaments(env, q, n_tournaments_learn, evaluate=False, training_pool=None, fixed_lineup=lineup)
+    n_tournaments_learn = 10000
+    RANDOM_LINEUP = [q,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
+    run_n_tournaments(env, q, n_tournaments_learn, evaluate=False, training_pool=None, fixed_lineup=RANDOM_LINEUP)
 
 
     #EVALUATE
 
-    n_tournaments_evaluate = 100
+    n_tournaments_evaluate = 500
     window_size = max(50, n_tournaments_evaluate // 20)
 
     EVALUATION_LINEUPS = [ 
-        [q, FoldAgent(env), TwoHighAgent(env), RandomAllInFoldAgent(env)],
-        [q, SuitedAgent(env), AllInAgent(env), RandomAllInFoldAgent(env)],
-        [q, FoldAgent(env), SuitedAgent(env), AllInAgent(env)],
-        [q, AllInPairAgent(env), AllInAgent(env), RandomAllInFoldAgent(env)]
+        RANDOM_LINEUP
     ]
 
     num_lineups = len(EVALUATION_LINEUPS)
