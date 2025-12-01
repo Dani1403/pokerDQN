@@ -1,5 +1,6 @@
 import time
 from qagent import QAgent
+from dqn_agent import DQNAgent
 from simconfig import PRIZE_POOL
 import simulation                      
 import gymnasium as gym      
@@ -125,7 +126,7 @@ def main():
 
     env = simulation.PokerTournament()
 
-    q = QAgent(env)
+    q = DQNAgent(env)
 
     #TRAIN
 

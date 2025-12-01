@@ -50,6 +50,9 @@ class PokerTournament(gym.Env):
 
         self.max_stack = players * starting_stack
 
+        bb = self.table.dealer.blinds[1]
+        self.max_stack_bb = int(self.max_stack // bb) + 1 
+
         self.all_in = players * self.table.dealer.start_stack
         self.fold = -1
 
@@ -60,6 +63,17 @@ class PokerTournament(gym.Env):
         self._reward = [0] * players  # Rewards for each player
         self._bust_order = [None] * players  # Track the order of busts
         self.elimination_counter = 0
+
+        self.actions = ['ALLIN', 'FOLD']              
+        self.actions_to_env = {
+            0: self.all_in,
+            1: self.fold,
+        }
+
+        # --- Ranks normalization ---
+        self.rank_min = min(CHAR_RANK_TO_INT_RANK.values())  
+        self.rank_max = max(CHAR_RANK_TO_INT_RANK.values()) 
+        self.n_ranks  = self.rank_max - self.rank_min + 1  
 
     """
     Reset the environment to its initial state.
@@ -192,6 +206,17 @@ class PokerTournament(gym.Env):
             prize_index += num
 
         return reward
+
+
+
+
+    def _encode_hand(self, hand):
+        """Encodes the hand as (low_rank_idx, high_rank_idx, suited_idx) with ranks 0..n_ranks-1."""
+        c1 = CHAR_RANK_TO_INT_RANK[hand[0].rank] - self.rank_min
+        c2 = CHAR_RANK_TO_INT_RANK[hand[1].rank] - self.rank_min
+        low, high = (c1, c2) if c1 <= c2 else (c2, c1)
+        suited = 1 if (hand[0].suit == hand[1].suit) else 0
+        return (low, high, suited)
 
 
     """

@@ -13,13 +13,13 @@
     <Name>pokerDQN</Name>
     <RootNamespace>testRL</RootNamespace>
     <TestFramework>Pytest</TestFramework>
-    <InterpreterId>CondaEnv|CondaEnv|poker-pypy</InterpreterId>
+    <InterpreterId>CondaEnv|CondaEnv|rl-gpu</InterpreterId>
     <IsWindowsApplication>False</IsWindowsApplication>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
     <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
     <SuppressPackageInstallationPrompt>True</SuppressPackageInstallationPrompt>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <InterpreterPath>C:\Users\danis\anaconda3\envs\poker-pypy\python.exe</InterpreterPath>
+    <InterpreterPath>C:\Users\danis\anaconda3\envs\rl-gpu\python.exe</InterpreterPath>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
