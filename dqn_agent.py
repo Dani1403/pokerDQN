@@ -3,6 +3,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from collections import deque
+import time 
+
+from torch.utils.tensorboard import SummaryWriter
+
 
 
 import numpy as np
@@ -46,13 +50,14 @@ Example Hyper parameter dictionary for the DQN agent :
 
 H_PARAMS = {
     'N_ACTIONS': 2,
-    'STATE_DIM': 3,
+    'STATE_DIM': 6,
     'HIDDEN_DIM': 128,
     'GAMMA': 0.99,
     'LR': 5e-4,
-    'BATCH_SIZE': 128,
+    'BATCH_SIZE': 32,
     'BUFFER_SIZE': 50_000,
     'TARGET_SYNC': 500,
+    'FREQ_TRAIN': 8,
     'EPS_START': 1.0,
     'EPS_END': 0.05,
     'EPS_DECAY': 5_000,
@@ -73,10 +78,11 @@ class DQNAgent(nn.Module):
         self.batch_size = H_PARAMS['BATCH_SIZE']
         self.buffer_size = H_PARAMS['BUFFER_SIZE']
         self.target_sync = H_PARAMS['TARGET_SYNC']
-        self.eps_start = H_PARAMS['EPS_START']
-        self.eps_end = H_PARAMS['EPS_END']
-        self.eps_decay = H_PARAMS['EPS_DECAY']
-        self.epsilon = self.eps_start
+        self.epsilon_start = H_PARAMS['EPS_START']
+        self.epsilon_end = H_PARAMS['EPS_END']
+        self.epsilon_decay = H_PARAMS['EPS_DECAY']
+        self.epsilon = self.epsilon_start
+        self.freq_train = H_PARAMS['FREQ_TRAIN']
 
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")
@@ -107,14 +113,64 @@ class DQNAgent(nn.Module):
 
         self.train_steps = 0
 
+
+        self.writer = SummaryWriter(f"logs/run_{int(time.time())}")
+        self.global_step = 0
+
+
     def forward(self, x):
         x = x.to(self.device)
         return self.net(x)
 
     def _preprocess_state(self, obs):
-        # For now just use hand encoding as state
-        hand_encoding = self.env._encode_hand(obs['hole_cards'])
-        return np.array(hand_encoding, dtype=np.float32)
+        low_rank, high_rank, suited = self.env._encode_hand(obs['hole_cards'])
+        low_norm  = low_rank  / (self.env.n_ranks - 1)
+        high_norm = high_rank / (self.env.n_ranks - 1)
+        suited_norm = float(suited)
+
+        stacks_bb = tuple(min(s // self.env.table.dealer.blinds[1], self.env.max_stack_bb - 1) for s in obs['stacks'])
+
+        stack = stacks_bb[obs['action']]
+
+        shortest = 1  # assume is shortest
+
+        other_stacks = [stacks_bb[i] for i in range(
+            len(stacks_bb)) if i != obs['action'] and obs['active'][i]]
+        if other_stacks:
+            shortest_other = min(other_stacks)
+            if shortest_other < stack:
+                shortest = 0
+
+        player_idx = (obs['action'],)
+
+
+        stack_norm = stack / (self.env.max_stack_bb - 1)
+
+        shortest = 1
+        other_stacks = [
+            stacks_bb[i] for i in range(len(stacks_bb))
+            if i != obs["action"] and obs["active"][i]
+        ]
+
+        if other_stacks:
+            if min(other_stacks) < stack:
+                shortest = 0
+
+        shortest_norm = float(shortest)
+
+        position_norm = obs["action"] / (self.env.num_players - 1)
+
+
+        state = np.array([
+            low_norm,
+            high_norm,
+            suited_norm,
+            stack_norm,
+            shortest_norm,
+            position_norm
+        ], dtype=np.float32)
+
+        return state
 
     def act(self, obs):
         
@@ -132,6 +188,11 @@ class DQNAgent(nn.Module):
         self.buffer.append((state, action, reward, next_state, done))
 
     def update_parameters(self, obs, action, reward, next_obs, done):
+
+        #train every FREQ_TRAIN steps
+        if self.global_step % self.freq_train != 0:
+            self.global_step += 1
+            return
 
         action_idx = 0 if action == self.env.actions_to_env[0] else 1
 
@@ -181,6 +242,19 @@ class DQNAgent(nn.Module):
         nn.utils.clip_grad_norm_(self.net.parameters(), 1.0)
         self.optimizer.step()
 
+        # Logging
+        # Log metrics
+        self.writer.add_scalar("Loss/TD_Error", loss.item(), self.global_step)
+        self.writer.add_scalar("Policy/Epsilon", self.epsilon, self.global_step)
+
+        # Log average Q-values
+        with torch.no_grad():
+            avg_q = q_values.mean().item()
+        self.writer.add_scalar("Q_values/avg_q", avg_q, self.global_step)
+
+        self.global_step += 1
+
+
         self.train_steps += 1
         # Update target network
         if self.train_steps % self.target_sync == 0:
@@ -189,6 +263,9 @@ class DQNAgent(nn.Module):
         # Decay epsilon
         if done and self.epsilon > self.epsilon_end:
             self.epsilon *= self.epsilon_decay
+
+            self.epsilon = max(self.epsilon, self.epsilon_end)
+
 
 
     def __str__(self):

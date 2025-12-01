@@ -30,10 +30,18 @@ def run_tournament(env, agents, evaluate=False):
            reward = stack_diff
            #normalize reward to big blind units
            reward = [min(r // env.table.dealer.blinds[1], env.max_stack - 1) for r in reward]
+
+           # normalize to tanh range
+           reward = [np.tanh(r / 5.0) for r in reward]
+
+        elif not evaluate:
+            #normalize payouts
+            reward = [np.tanh(r / 50.0) for r in reward]
+
         
         if not evaluate:
             for i, agent in enumerate(agents):
-                if isinstance(agent, QAgent):
+                if isinstance(agent, QAgent) or isinstance(agent, DQNAgent):
                     agent.update_parameters(obs, action, reward[i], next_obs, done)
 
         obs = next_obs
@@ -56,11 +64,10 @@ def run_n_tournaments(env, qagent, n_tournaments, evaluate=False, fixed_lineup=N
 
     rewards_per_tournament = []
 
-    for _ in tqdm(range(n_tournaments), desc="Running Tournament", ascii=True, ncols=80):
+    for tournament_idx in tqdm(range(n_tournaments), desc="Running Tournament", ascii=True, ncols=80):
 
         if fixed_lineup:
             agents = fixed_lineup
-
         else:
             agents = training_table(env, qagent, training_pool)
 
@@ -74,6 +81,8 @@ def run_n_tournaments(env, qagent, n_tournaments, evaluate=False, fixed_lineup=N
 
         if evaluate:
             rewards_per_tournament.append(reward)
+        else :
+            qagent.writer.add_scalar("Rewards/TournamentReward_Player0", reward[0], tournament_idx)
 
     return rewards_per_tournament
 
@@ -130,7 +139,7 @@ def main():
 
     #TRAIN
 
-    n_tournaments_learn = 10000
+    n_tournaments_learn = 2_000
     RANDOM_LINEUP = [q,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
     run_n_tournaments(env, q, n_tournaments_learn, evaluate=False, training_pool=None, fixed_lineup=RANDOM_LINEUP)
 
