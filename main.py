@@ -9,7 +9,8 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import cProfile, pstats, io
 import sys
-
+from datetime import datetime
+import os
 from poker_agents import *
 
 def run_tournament(env, agents, evaluate=False):
@@ -122,7 +123,18 @@ def placements(rewards_per_tournament):
 
     return placement_summary
     
+def save_fig(fig, name=None, directory="plots"):
+    """Save a matplotlib figure into a directory and close it."""
+    os.makedirs(directory, exist_ok=True)
 
+    if name is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        name = f"fig_{timestamp}.png"
+
+    path = os.path.join(directory, name)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    return path
 
 def plot_results(rewards_per_tournament, agents, n_tournaments, window_size, ax):
     reward_per_agent = np.array(rewards_per_tournament).T
@@ -156,7 +168,7 @@ def main():
 
     #TRAIN
 
-    n_tournaments_learn = 2_000
+    n_tournaments_learn = 2_00
     RANDOM_LINEUP = [q,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
     ALL_IN_PAIR_LINEUP = [q, AllInPairAgent(
         env), AllInPairAgent(env), AllInPairAgent(env)]
@@ -187,7 +199,7 @@ def main():
         plot_results(rewards_per_tournament, lineup, n_tournaments_evaluate, window_size, ax)
 
     plt.tight_layout()
-    plt.show()
+    save_fig(fig, directory="eval_logs")
 
 
     env.close()

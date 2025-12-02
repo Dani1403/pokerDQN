@@ -2,8 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from collections import deque
-import time 
-
+from datetime import datetime
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -49,7 +48,7 @@ Example Hyper parameter dictionary for the DQN agent :
 
 H_PARAMS = {
     'N_ACTIONS': 2,
-    'STATE_DIM': 10,
+    'STATE_DIM': 7,
     'HIDDEN_DIM': 128,
     'GAMMA': 0.99,
     'LR': 5e-4,
@@ -112,8 +111,8 @@ class DQNAgent(nn.Module):
 
         self.train_steps = 0
 
-
-        self.writer = SummaryWriter(f"logs/run_{int(time.time())}")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.writer = SummaryWriter(f"logs/run_{timestamp}")
         self.global_step = 0
 
 
@@ -169,9 +168,6 @@ class DQNAgent(nn.Module):
             high_norm,
             suited_norm,
             stack_norm,
-            other_stacks_norm[0] if len(other_stacks_norm) > 0 else 0.0,
-            other_stacks_norm[1] if len(other_stacks_norm) > 1 else 0.0,
-            other_stacks_norm[2] if len(other_stacks_norm) > 2 else 0.0,
             active_norm,
             shortest_norm,
             position_norm
