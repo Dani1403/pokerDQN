@@ -1,4 +1,3 @@
-from re import S
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -50,7 +49,7 @@ Example Hyper parameter dictionary for the DQN agent :
 
 H_PARAMS = {
     'N_ACTIONS': 2,
-    'STATE_DIM': 6,
+    'STATE_DIM': 10,
     'HIDDEN_DIM': 128,
     'GAMMA': 0.99,
     'LR': 5e-4,
@@ -60,7 +59,7 @@ H_PARAMS = {
     'FREQ_TRAIN': 8,
     'EPS_START': 1.0,
     'EPS_END': 0.05,
-    'EPS_DECAY': 5_000,
+    'EPS_DECAY': 5000,
 }
 
 
@@ -152,6 +151,9 @@ class DQNAgent(nn.Module):
             if i != obs["action"] and obs["active"][i]
         ]
 
+        other_stacks_norm = [s / (self.env.max_stack_bb - 1)
+                             for s in other_stacks]
+
         if other_stacks:
             if min(other_stacks) < stack:
                 shortest = 0
@@ -160,52 +162,57 @@ class DQNAgent(nn.Module):
 
         position_norm = obs["action"] / (self.env.num_players - 1)
 
+        active_norm = sum(obs['active']) / self.env.num_players
 
         state = np.array([
             low_norm,
             high_norm,
             suited_norm,
             stack_norm,
+            other_stacks_norm[0] if len(other_stacks_norm) > 0 else 0.0,
+            other_stacks_norm[1] if len(other_stacks_norm) > 1 else 0.0,
+            other_stacks_norm[2] if len(other_stacks_norm) > 2 else 0.0,
+            active_norm,
             shortest_norm,
             position_norm
         ], dtype=np.float32)
 
         return state
 
-    def act(self, obs):
-        
-        state = self._preprocess_state(obs)
+    def act(self, state):
+
+        state_t = torch.from_numpy(state).to(self.device).unsqueeze(0)
+
         if np.random.rand() < self.epsilon:
             action_idx = random.choice([0, 1])
-        state = torch.FloatTensor(state).unsqueeze(0)
-        q_values = self.forward(state)
-        action_idx = q_values.argmax().item()   
-        
+        else:
+            with torch.no_grad():
+                q_values = self.forward(state_t)
+                action_idx = q_values.argmax().item()
+
         return self.env.actions_to_env[action_idx]
+
 
     # Memorize experience in replay buffer
     def _remember(self, state, action, reward, next_state, done):
         self.buffer.append((state, action, reward, next_state, done))
 
-    def update_parameters(self, obs, action, reward, next_obs, done):
+    def update_parameters(self, state, action, reward, next_state, done):
 
-        #train every FREQ_TRAIN steps
-        if self.global_step % self.freq_train != 0:
-            self.global_step += 1
+        if state is None:
             return
 
         action_idx = 0 if action == self.env.actions_to_env[0] else 1
 
-        state = self._preprocess_state(obs)
-
-        next_state = self._preprocess_state(
-            next_obs) if next_obs is not None else None
-
         self._remember(state, action_idx, reward, next_state, done)
+        self.global_step += 1
+
+        #train every FREQ_TRAIN steps
+        if self.global_step % self.freq_train != 0:
+            return
 
         if len(self.buffer) < self.batch_size:
             return
-
 
         #sample from the replay buffer
 
@@ -244,8 +251,9 @@ class DQNAgent(nn.Module):
 
         # Logging
         # Log metrics
-        self.writer.add_scalar("Loss/TD_Error", loss.item(), self.global_step)
-        self.writer.add_scalar("Policy/Epsilon", self.epsilon, self.global_step)
+        if self.global_step % 100 == 0:
+            self.writer.add_scalar("Loss/TD_Error", loss.item(), self.global_step)
+            self.writer.add_scalar("Policy/Epsilon", self.epsilon, self.global_step)
 
         # Log average Q-values
         with torch.no_grad():
@@ -262,8 +270,7 @@ class DQNAgent(nn.Module):
 
         # Decay epsilon
         if done and self.epsilon > self.epsilon_end:
-            self.epsilon *= self.epsilon_decay
-
+            self.epsilon -= (self.epsilon_start - self.epsilon_end) / self.epsilon_decay
             self.epsilon = max(self.epsilon, self.epsilon_end)
 
 

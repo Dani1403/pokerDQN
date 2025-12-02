@@ -13,41 +13,58 @@ import sys
 from poker_agents import *
 
 def run_tournament(env, agents, evaluate=False):
+
     obs, _ = env.reset(options={"reset_button": True, "reset_stacks": True})
     prev_stacks = obs['stacks'].copy()
     done = False
+
     while not done:
-        curr_agent = agents[env.table.dealer.action]
-        action = curr_agent.act(obs)
+
+        player_idx = env.table.dealer.action
+        curr_agent = agents[player_idx]
+
+        if isinstance(curr_agent, (QAgent, DQNAgent)):
+            state = curr_agent._preprocess_state(obs)
+            action = curr_agent.act(state)
+        else:
+            action = curr_agent.act(obs)
 
         next_obs, reward, done, _, _ = env.step(action)
 
+        # Only compute next state for SAME PLAYER
+        next_state = None
+        if next_obs is not None and isinstance(curr_agent, (QAgent, DQNAgent)):
+            next_state = curr_agent._preprocess_state(next_obs)
+
+        # reward shaping
         new_stacks = next_obs['stacks'].copy()
-        stack_diff = [new_stacks[i] - prev_stacks[i]
-                      for i in range(env.num_players)]
+        stack_diff = [new_stacks[i] - prev_stacks[i] for i in range(env.num_players)]
 
         if not done:
-           reward = stack_diff
-           #normalize reward to big blind units
-           reward = [min(r // env.table.dealer.blinds[1], env.max_stack - 1) for r in reward]
-
-           # normalize to tanh range
-           reward = [np.tanh(r / 5.0) for r in reward]
+            reward = stack_diff
+            reward = [min(r // env.table.dealer.blinds[1], env.max_stack_bb - 1) for r in reward]
+            reward = [np.tanh(r / 5.0) for r in reward]
 
         elif not evaluate:
-            #normalize payouts
             reward = [np.tanh(r / 50.0) for r in reward]
 
-        
+        # Training step
         if not evaluate:
             for i, agent in enumerate(agents):
-                if isinstance(agent, QAgent) or isinstance(agent, DQNAgent):
-                    agent.update_parameters(obs, action, reward[i], next_obs, done)
+                if isinstance(agent, (QAgent, DQNAgent)):
+                    agent.update_parameters(
+                        state if i == player_idx else None,
+                        action,
+                        reward[i],
+                        next_state if i == player_idx else None,
+                        done
+                    )
 
-        obs = next_obs
         prev_stacks = new_stacks
+        obs = next_obs
 
     return reward
+
 
 
 def training_table(env, q, pool):
@@ -141,16 +158,19 @@ def main():
 
     n_tournaments_learn = 2_000
     RANDOM_LINEUP = [q,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
-    run_n_tournaments(env, q, n_tournaments_learn, evaluate=False, training_pool=None, fixed_lineup=RANDOM_LINEUP)
+    ALL_IN_PAIR_LINEUP = [q, AllInPairAgent(
+        env), AllInPairAgent(env), AllInPairAgent(env)]
+
+    run_n_tournaments(env, q, n_tournaments_learn, evaluate=False, training_pool=None, fixed_lineup=ALL_IN_PAIR_LINEUP)
 
 
     #EVALUATE
 
-    n_tournaments_evaluate = 500
+    n_tournaments_evaluate = 100
     window_size = max(50, n_tournaments_evaluate // 20)
 
     EVALUATION_LINEUPS = [ 
-        RANDOM_LINEUP
+        RANDOM_LINEUP, ALL_IN_PAIR_LINEUP
     ]
 
     num_lineups = len(EVALUATION_LINEUPS)
