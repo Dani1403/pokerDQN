@@ -12,7 +12,7 @@ GAME_ID = "Poker-v0"
 
 NUM_PLAYERS = 4
 
-PRIZE_POOL = (400, 300, 200, 100)
+PRIZE_POOL = (3, 2, 1, 0)
 
 HANDS_PER_LEVEL = 30
 

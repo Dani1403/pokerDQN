@@ -52,10 +52,10 @@ H_PARAMS = {
     'HIDDEN_DIM': 128,
     'GAMMA': 0.99,
     'LR': 5e-4,
-    'BATCH_SIZE': 32,
-    'BUFFER_SIZE': 50_000,
+    'BATCH_SIZE': 64,
+    'BUFFER_SIZE': 1_000_000,
     'TARGET_SYNC': 500,
-    'FREQ_TRAIN': 8,
+    'FREQ_TRAIN': 32,
     'EPS_START': 1.0,
     'EPS_END': 0.05,
     'EPS_DECAY': 5000,
@@ -212,7 +212,8 @@ class DQNAgent(nn.Module):
 
         #sample from the replay buffer
 
-        batch = random.sample(self.buffer, self.batch_size)
+        idxs = np.random.randint(len(self.buffer), size=self.batch_size)
+        batch = [self.buffer[i] for i in idxs]
         states, actions, rewards, next_states, dones = zip(*batch)
 
         states      = torch.FloatTensor(np.stack(states)).to(self.device)
@@ -265,7 +266,7 @@ class DQNAgent(nn.Module):
             self.target_net.load_state_dict(self.net.state_dict())
 
         # Decay epsilon
-        if done and self.epsilon > self.epsilon_end:
+        if self.epsilon > self.epsilon_end:
             self.epsilon -= (self.epsilon_start - self.epsilon_end) / self.epsilon_decay
             self.epsilon = max(self.epsilon, self.epsilon_end)
 

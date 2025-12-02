@@ -46,8 +46,8 @@ def run_tournament(env, agents, evaluate=False):
             reward = [min(r // env.table.dealer.blinds[1], env.max_stack_bb - 1) for r in reward]
             reward = [np.tanh(r / 5.0) for r in reward]
 
-        elif not evaluate:
-            reward = [np.tanh(r / 50.0) for r in reward]
+        # elif not evaluate:
+        #     reward = [np.tanh(r / 50.0) for r in reward]
 
         # Training step
         if not evaluate:
@@ -168,7 +168,7 @@ def main():
 
     #TRAIN
 
-    n_tournaments_learn = 2_00
+    n_tournaments_learn = 20_000
     RANDOM_LINEUP = [q,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
     ALL_IN_PAIR_LINEUP = [q, AllInPairAgent(
         env), AllInPairAgent(env), AllInPairAgent(env)]
@@ -178,7 +178,7 @@ def main():
 
     #EVALUATE
 
-    n_tournaments_evaluate = 100
+    n_tournaments_evaluate = 1_000
     window_size = max(50, n_tournaments_evaluate // 20)
 
     EVALUATION_LINEUPS = [ 
