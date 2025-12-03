@@ -179,11 +179,11 @@ def main():
 
     env = simulation.PokerTournament()
 
-    dqn1 = DQNAgent(env)
+    dqn1 = DQNAgent(env, "dqn1")
 
-    dqn2 = DQNAgent(env)
+    dqn2 = DQNAgent(env, "dqn2")
 
-    n_tournaments_learn = 10_000
+    n_tournaments_learn = 1000
     RANDOM_LINEUP = [dqn1,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
     ALL_IN_PAIR_LINEUP = [dqn1, AllInPairAgent(
         env), AllInPairAgent(env), AllInPairAgent(env)]
@@ -191,7 +191,7 @@ def main():
     DQN_LINEUP = [dqn1, dqn2, RandomAllInFoldAgent(
         env), RandomAllInFoldAgent(env)]
 
-    train_and_evaluate(env, n_tournaments_learn, freq_eval=2_500,
+    train_and_evaluate(env, n_tournaments_learn, freq_eval=500,
                        training_lineup=DQN_LINEUP,
                        evaluation_lineups=[DQN_LINEUP])
    

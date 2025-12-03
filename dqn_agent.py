@@ -63,10 +63,11 @@ H_PARAMS = {
 
 
 class DQNAgent(nn.Module):
-    def __init__(self, env):
+    def __init__(self, env, name):
         super().__init__()
 
         self.env = env
+        self.name = name
 
         self.n_actions = H_PARAMS['N_ACTIONS']
         self.state_dim = H_PARAMS['STATE_DIM']
@@ -112,7 +113,7 @@ class DQNAgent(nn.Module):
         self.train_steps = 0
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.writer = SummaryWriter(f"logs/run_{timestamp}")
+        self.writer = SummaryWriter(f"logs/run_{self.name}_{timestamp}")
         self.global_step = 0
 
 
@@ -273,4 +274,4 @@ class DQNAgent(nn.Module):
 
 
     def __str__(self):
-        return self.__class__.__name__
+        return self.name
