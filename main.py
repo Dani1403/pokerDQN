@@ -49,12 +49,12 @@ def run_tournament(env, agents, evaluate=False):
         # Training step
         if not evaluate:
             for i, agent in enumerate(agents):
-                if isinstance(agent, (QAgent, DQNAgent)):
+                if i == player_idx and isinstance(agent, (QAgent, DQNAgent)):
                     agent.update_parameters(
-                        state if i == player_idx else None,
+                        state,
                         action,
                         reward[i],
-                        next_state if i == player_idx else None,
+                        next_state,
                         done
                     )
 
@@ -64,7 +64,7 @@ def run_tournament(env, agents, evaluate=False):
     return reward
 
 """ must provide a fixed lineup """
-def run_n_tournaments(env, n_tournaments, evaluate=False, fixed_lineup=None):
+def run_n_tournaments(env, n_tournaments, evaluate=False, fixed_lineup=None, desc=None):
 
     rewards_per_tournament = []
 
@@ -73,7 +73,7 @@ def run_n_tournaments(env, n_tournaments, evaluate=False, fixed_lineup=None):
             if hasattr(agent, "epsilon"):
                 agent.epsilon = 0.0
 
-    for tournament_idx in tqdm(range(n_tournaments), desc="Running Tournament", ascii=True, ncols=80):
+    for tournament_idx in tqdm(range(n_tournaments), ascii=True, ncols=80, desc=desc):
 
         reward = run_tournament(env, fixed_lineup, evaluate)
 
@@ -91,10 +91,14 @@ def training_table(env, agents, pool):
     return agents
 
 
-def train(env, n_tournaments, lineup):
-    run_n_tournaments(env, n_tournaments, evaluate=False, fixed_lineup=lineup)
+def train(env, n_tournaments, lineup, desc):
+    run_n_tournaments(env, n_tournaments, evaluate=False, fixed_lineup=lineup, desc=desc)
 
 
+def evaluate(env, n_tournaments, lineup, desc):
+    rewards_per_tournament = run_n_tournaments(
+        env, n_tournaments, evaluate=True, fixed_lineup=lineup, desc=desc)
+    return rewards_per_tournament
 
 def moving_average(x, window_size):
     return np.convolve(x, np.ones(window_size)/window_size, mode='valid')
@@ -133,8 +137,15 @@ def plot_results(rewards_per_tournament, agents, n_tournaments, window_size, ax)
     placement_summary = placements(rewards_per_tournament)
 
     for i, rewards in enumerate(reward_per_agent):
-        smoothed = moving_average(rewards, window_size)
-        ax.plot(range(window_size - 1, n_tournaments), smoothed, linewidth=2, label=f"Player {i + 1}")
+        if len(rewards) < window_size:
+            smoothed = rewards
+            x_values = range(len(rewards))
+        else:
+            smoothed = moving_average(rewards, window_size)
+            x_values = range(window_size - 1, window_size - 1 + len(smoothed))
+
+        ax.plot(x_values, smoothed, linewidth=2, label=f"Player {i + 1}")
+
     ax.set_title("Rewards per Tournament in Poker Simulation")
     ax.set_xlabel("Tournament")
     ax.set_ylabel("Rewards")
@@ -152,9 +163,9 @@ def plot_results(rewards_per_tournament, agents, n_tournaments, window_size, ax)
     ax.grid(True, which='both', axis='y', linestyle='--', alpha=0.4)
 
 
-def train_and_evaluate(env, n_tournaments_learn, freq_eval, training_lineup, evaluation_lineups):
-    n_evaluations = n_tournaments_learn // freq_eval
-    window_size = max(50, freq_eval // 20)
+def train_and_evaluate(env, N_total, learn_size, eval_size, training_lineup, evaluation_lineups):
+    n_evaluations = N_total // learn_size
+    window_size = max(50, eval_size // 20)
     fig, axes = plt.subplots(
         n_evaluations, 
         len(evaluation_lineups), 
@@ -165,12 +176,12 @@ def train_and_evaluate(env, n_tournaments_learn, freq_eval, training_lineup, eva
     if len(evaluation_lineups) == 1:
         axes = np.expand_dims(axes, axis=1)
     for eval_idx in range(n_evaluations):
-        train(env, freq_eval, training_lineup)
+        train(env, learn_size, training_lineup, desc=f"Running training session {eval_idx+1}")
         for ax, lineup in zip(axes[eval_idx], evaluation_lineups):
-            rewards_per_tournament = run_n_tournaments(
-                env, freq_eval, evaluate=True, fixed_lineup=lineup)
+            rewards_per_tournament = evaluate(
+                env, eval_size, lineup, desc=f"Evaluating after training session {eval_idx+1}")
             plot_results(rewards_per_tournament, lineup,
-                         freq_eval, window_size, ax)
+                         eval_size, window_size, ax)
     plt.tight_layout()
     save_fig(fig, directory="eval_logs")
 
@@ -183,7 +194,6 @@ def main():
 
     dqn2 = DQNAgent(env, "dqn2")
 
-    n_tournaments_learn = 1000
     RANDOM_LINEUP = [dqn1,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
     ALL_IN_PAIR_LINEUP = [dqn1, AllInPairAgent(
         env), AllInPairAgent(env), AllInPairAgent(env)]
@@ -191,7 +201,11 @@ def main():
     DQN_LINEUP = [dqn1, dqn2, RandomAllInFoldAgent(
         env), RandomAllInFoldAgent(env)]
 
-    train_and_evaluate(env, n_tournaments_learn, freq_eval=500,
+    N_total = 80_000
+    train_size = 10_000
+    eval_size = 1_000
+
+    train_and_evaluate(env, N_total, train_size, eval_size,
                        training_lineup=DQN_LINEUP,
                        evaluation_lineups=[DQN_LINEUP])
    
