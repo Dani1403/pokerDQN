@@ -51,14 +51,14 @@ H_PARAMS = {
     'STATE_DIM': 7,
     'HIDDEN_DIM': 128,
     'GAMMA': 0.99,
-    'LR': 5e-4,
+    'LR': 3e-4,
     'BATCH_SIZE': 64,
-    'BUFFER_SIZE': 1_000_000,
-    'TARGET_SYNC': 500,
+    'BUFFER_SIZE': 2_000_000,
+    'TARGET_SYNC': 1000,
     'FREQ_TRAIN': 32,
     'EPS_START': 1.0,
-    'EPS_END': 0.05,
-    'EPS_DECAY': 5000,
+    'EPS_END': 0.15,
+    'EPS_DECAY': 300_000,
 }
 
 
