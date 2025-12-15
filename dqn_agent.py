@@ -76,8 +76,8 @@ class DuelingDQN(nn.Module):
 
     def forward(self, x):
         x = self.feature(x)
-        value = self.value_stream(x)
-        advantage = self.advantage_stream(x)
+        value = self.value_head(x)
+        advantage = self.advantage_head(x)
         advantage_mean = advantage.mean(dim=1, keepdim=True)
         q_values = value + (advantage - advantage_mean)
         return q_values
