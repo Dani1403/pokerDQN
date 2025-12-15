@@ -213,9 +213,9 @@ def main():
     DQN_LINEUP = [dqn1, dqn2, RandomAllInFoldAgent(
         env), RandomAllInFoldAgent(env)]
 
-    N_total = 800
-    train_size = 100
-    eval_size = 10
+    N_total = 8000
+    train_size = 1000
+    eval_size = 100
 
     train_and_evaluate(env, N_total, train_size, eval_size,
                        training_lineup=DQN_LINEUP,
