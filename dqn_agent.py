@@ -4,6 +4,7 @@ import torch.optim as optim
 from collections import deque
 from datetime import datetime
 from torch.utils.tensorboard import SummaryWriter
+import os
 
 
 
@@ -278,6 +279,26 @@ class DQNAgent(nn.Module):
         if self.epsilon > self.epsilon_end:
             self.epsilon -= (self.epsilon_start - self.epsilon_end) / self.epsilon_decay
             self.epsilon = max(self.epsilon, self.epsilon_end)
+
+
+
+    def save(self, path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        torch.save({
+            'net': self.net.state_dict(),
+            'target_net': self.target_net.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'epsilon': self.epsilon,
+            'global_step': self.global_step,
+        }, path)
+
+    def load(self, path, map_location=None):
+        checkpoint = torch.load(path, map_location=map_location)
+        self.net.load_state_dict(checkpoint['net'])
+        self.target_net.load_state_dict(checkpoint['target_net'])
+        self.optimizer.load_state_dict(checkpoint['optimizer'])
+        self.epsilon = checkpoint['epsilon']
+        self.global_step = checkpoint.get('global_step', 0)
 
 
 

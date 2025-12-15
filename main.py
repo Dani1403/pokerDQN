@@ -177,6 +177,9 @@ def train_and_evaluate(env, N_total, learn_size, eval_size, training_lineup, eva
         axes = np.expand_dims(axes, axis=1)
     for eval_idx in range(n_evaluations):
         train(env, learn_size, training_lineup, desc=f"Running training session {eval_idx+1}")
+        for agent in training_lineup:
+            if hasattr(agent, "save"):
+                agent.save(f"checkpoints/{agent}__iter__{eval_idx+1}.pt")
         for ax, lineup in zip(axes[eval_idx], evaluation_lineups):
             rewards_per_tournament = evaluate(
                 env, eval_size, lineup, desc=f"Evaluating after training session {eval_idx+1}")
