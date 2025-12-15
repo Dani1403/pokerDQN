@@ -179,7 +179,8 @@ def train_and_evaluate(env, N_total, learn_size, eval_size, training_lineup, eva
         train(env, learn_size, training_lineup, desc=f"Running training session {eval_idx+1}")
         for agent in training_lineup:
             if hasattr(agent, "save"):
-                agent.save(f"checkpoints/{agent}__iter__{eval_idx+1}.pt")
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                agent.save(f"checkpoints/{agent}__{timestamp}__iter__{eval_idx+1}.pt")
         for ax, lineup in zip(axes[eval_idx], evaluation_lineups):
             rewards_per_tournament = evaluate(
                 env, eval_size, lineup, desc=f"Evaluating after training session {eval_idx+1}")
