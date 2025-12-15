@@ -272,6 +272,37 @@ class DQNAgent(nn.Module):
             self.epsilon = max(self.epsilon, self.epsilon_end)
 
 
+    def train_batch(self, states, actions, rewards, next_states, dones):
+
+        states      = torch.FloatTensor(states).to(self.device)
+        actions     = torch.LongTensor(actions).unsqueeze(1).to(self.device)
+        rewards     = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
+        next_states = torch.FloatTensor(next_states).to(self.device)
+        dones       = torch.FloatTensor(dones).unsqueeze(1).to(self.device)
+
+        q_vals = self.forward(states).gather(1, actions)
+
+        with torch.no_grad():
+            next_online = self.forward(next_states)
+            next_actions = next_online.argmax(dim=1, keepdim=True)
+
+            next_target = self.target_net(next_states).gather(1, next_actions)
+            target = rewards + self.gamma * (1 - dones) * next_target
+
+        loss = nn.MSELoss()(q_vals, target)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        nn.utils.clip_grad_norm_(self.net.parameters(), 1.0)
+        self.optimizer.step()
+
+        if self.train_steps % self.target_sync == 0:
+            self.target_net.load_state_dict(self.net.state_dict())
+
+        self.train_steps += 1
+
+
+
 
     def __str__(self):
         return self.name

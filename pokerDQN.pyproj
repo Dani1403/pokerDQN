@@ -44,10 +44,13 @@
     <Compile Include="clubs\__init__.py" />
     <Compile Include="dqn_agent.py" />
     <Compile Include="main.py" />
+    <Compile Include="master.py" />
     <Compile Include="poker_agents.py" />
     <Compile Include="qagent.py" />
+    <Compile Include="replay_buffer.py" />
     <Compile Include="simconfig.py" />
     <Compile Include="simulation.py" />
+    <Compile Include="worker.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="CondaEnv|CondaEnv|poker-pypy" />
