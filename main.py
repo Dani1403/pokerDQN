@@ -181,6 +181,8 @@ def train_and_evaluate(env, N_total, learn_size, eval_size, training_lineup, eva
             if hasattr(agent, "save"):
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                 agent.save(f"checkpoints/{agent}__{timestamp}__iter__{eval_idx+1}.pt")
+                if eval_idx == n_evaluations - 1:
+                    agent.save(f"checkpoints/{agent}__final__.pt")
         for ax, lineup in zip(axes[eval_idx], evaluation_lineups):
             rewards_per_tournament = evaluate(
                 env, eval_size, lineup, desc=f"Evaluating after training session {eval_idx+1}")
@@ -195,8 +197,10 @@ def main():
     env = simulation.PokerTournament()
 
     dqn1 = DQNAgent(env, "dqn1")
+    dqn1.load(f"checkpoints/{dqn1}__final__.pt")
 
     dqn2 = DQNAgent(env, "dqn2")
+    dqn2.load(f"checkpoints/{dqn2}__final__.pt")
 
     RANDOM_LINEUP = [dqn1,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
     ALL_IN_PAIR_LINEUP = [dqn1, AllInPairAgent(
