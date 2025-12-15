@@ -197,10 +197,14 @@ def main():
     env = simulation.PokerTournament()
 
     dqn1 = DQNAgent(env, "dqn1")
-    dqn1.load(f"checkpoints/{dqn1}__final__.pt")
+    if os.path.exists(f"checkpoints/{dqn1}__final__.pt"):
+        dqn1.load(f"checkpoints/{dqn1}__final__.pt")
+        print("Loaded pretrained DQNAgent dqn1")
 
     dqn2 = DQNAgent(env, "dqn2")
-    dqn2.load(f"checkpoints/{dqn2}__final__.pt")
+    if os.path.exists(f"checkpoints/{dqn2}__final__.pt"):
+        dqn2.load(f"checkpoints/{dqn2}__final__.pt")
+        print("Loaded pretrained DQNAgent dqn2")
 
     RANDOM_LINEUP = [dqn1,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
     ALL_IN_PAIR_LINEUP = [dqn1, AllInPairAgent(
@@ -209,9 +213,9 @@ def main():
     DQN_LINEUP = [dqn1, dqn2, RandomAllInFoldAgent(
         env), RandomAllInFoldAgent(env)]
 
-    N_total = 8_000
-    train_size = 1_000
-    eval_size = 100
+    N_total = 800
+    train_size = 100
+    eval_size = 10
 
     train_and_evaluate(env, N_total, train_size, eval_size,
                        training_lineup=DQN_LINEUP,
