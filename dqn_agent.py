@@ -61,6 +61,26 @@ H_PARAMS = {
     'EPS_DECAY': 300_000,
 }
 
+class DuelingDQN(nn.Module):
+    def __init__(self, state_dim, hidden_dim, n_actions):
+        super().__init__()
+        self.feature = nn.Sequential(
+            nn.Linear(state_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU()
+        )
+        self.value_head = nn.Linear(hidden_dim, 1)
+        self.advantage_head = nn.Linear(hidden_dim, n_actions)
+
+    def forward(self, x):
+        x = self.feature(x)
+        value = self.value_stream(x)
+        advantage = self.advantage_stream(x)
+        advantage_mean = advantage.mean(dim=1, keepdim=True)
+        q_values = value + (advantage - advantage_mean)
+        return q_values
+
 
 class DQNAgent(nn.Module):
     def __init__(self, env, name):
@@ -86,21 +106,9 @@ class DQNAgent(nn.Module):
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")
 
-        self.net = nn.Sequential(
-            nn.Linear(self.state_dim, self.hidden_dim), 
-            nn.ReLU(),
-            nn.Linear(self.hidden_dim, self.hidden_dim),     
-            nn.ReLU(),
-            nn.Linear(self.hidden_dim, self.n_actions)
-        )
+        self.net = DuelingDQN(self.state_dim, self.hidden_dim, self.n_actions)
+        self.target_net = DuelingDQN(self.state_dim, self.hidden_dim, self.n_actions)
 
-        self.target_net = nn.Sequential(
-            nn.Linear(self.state_dim, self.hidden_dim),
-            nn.ReLU(),
-            nn.Linear(self.hidden_dim, self.hidden_dim),
-            nn.ReLU(),
-            nn.Linear(self.hidden_dim, self.n_actions)
-        )
         self.target_net.load_state_dict(self.net.state_dict())
         self.target_net.eval()
 
