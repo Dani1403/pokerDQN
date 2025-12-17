@@ -28,7 +28,7 @@ import random
 
 H_PARAMS = {
     'N_ACTIONS': 2,
-    'STATE_DIM': 7,
+    'STATE_DIM': 8,
     'HIDDEN_DIM': 128,
     'GAMMA': 0.99,
     'LR': 3e-4,
@@ -152,6 +152,8 @@ class DQNAgent(nn.Module):
 
         active_norm = sum(obs['active']) / self.env.num_players
 
+        call_norm = obs['call'] / obs['pot'] + 1e-6
+
         state = np.array([
             low_norm,
             high_norm,
@@ -159,7 +161,8 @@ class DQNAgent(nn.Module):
             stack_norm,
             active_norm,
             shortest_norm,
-            position_norm
+            position_norm,
+            call_norm
         ], dtype=np.float32)
 
         return state

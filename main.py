@@ -66,10 +66,12 @@ def run_tournament(env, agents, evaluate=False):
 def run_n_tournaments(env, n_tournaments, evaluate=False, fixed_lineup=None, desc=None):
 
     rewards_per_tournament = []
+    saved_epsilons = {}
 
     if evaluate:
         for agent in fixed_lineup:
             if hasattr(agent, "epsilon"):
+                saved_epsilons[agent] = agent.epsilon
                 agent.epsilon = 0.0
 
     for tournament_idx in tqdm(range(n_tournaments), ascii=True, ncols=80, desc=desc):
@@ -78,6 +80,10 @@ def run_n_tournaments(env, n_tournaments, evaluate=False, fixed_lineup=None, des
 
         if evaluate:
             rewards_per_tournament.append(reward)
+
+    if evaluate:
+        for agent, eps in saved_epsilons.items():
+            agent.epsilon = eps
 
     return rewards_per_tournament
 
