@@ -24,27 +24,6 @@ import random
         ...  'pot': 2, the total amount of chips in the pot,
         ...  'stacks': [9, 9], the current stacks of each player,
         ...  'street_commits': [0, 0]}
-
-
-        stacks in blinds (conversion needed)
-        prize pool 
-
-
-        start with small state space with q learning vs all random
-"""
-
-"""
-Example Hyper parameter dictionary for the DQN agent :
-    hparams = {
-        GAMMA        = 0.99     discount factor
-        LR           = 5e-4     learning rate
-        BATCH_SIZE   = 128      
-        BUFFER_SIZE  = 50_000
-        TARGET_SYNC  = 500        
-        EPS_START    = 1.0   
-        EPS_END      = 0.05
-        EPS_DECAY    = 5_000      
-    }
 """
 
 H_PARAMS = {

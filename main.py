@@ -44,7 +44,6 @@ def run_tournament(env, agents, evaluate=False):
         if not done:
             reward = stack_diff
             reward = [min(r // env.table.dealer.blinds[1], env.max_stack_bb - 1) for r in reward]
-            reward = [np.tanh(r / 5.0) for r in reward]
 
         # Training step
         if not evaluate:
@@ -177,12 +176,13 @@ def train_and_evaluate(env, N_total, learn_size, eval_size, training_lineup, eva
         axes = np.expand_dims(axes, axis=1)
     for eval_idx in range(n_evaluations):
         train(env, learn_size, training_lineup, desc=f"Running training session {eval_idx+1}")
+        if eval_idx == 0:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         for agent in training_lineup:
             if hasattr(agent, "save"):
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-                agent.save(f"checkpoints/{agent}__{timestamp}__iter__{eval_idx+1}.pt")
+                agent.save(f"checkpoints/{agent}/{timestamp}/iter_{eval_idx+1}.pt")
                 if eval_idx == n_evaluations - 1:
-                    agent.save(f"checkpoints/{agent}__final__.pt")
+                    agent.save(f"checkpoints/{agent}/final.pt")
         for ax, lineup in zip(axes[eval_idx], evaluation_lineups):
             rewards_per_tournament = evaluate(
                 env, eval_size, lineup, desc=f"Evaluating after training session {eval_idx+1}")
@@ -197,17 +197,17 @@ def main():
     env = simulation.PokerTournament()
 
     dqn1 = DQNAgent(env, "dqn1")
-    if os.path.exists(f"checkpoints/{dqn1}__final__.pt"):
-        dqn1.load(f"checkpoints/{dqn1}__final__.pt")
+    if os.path.exists(f"checkpoints/{dqn1}/final.pt"):
+        dqn1.load(f"checkpoints/{dqn1}/final.pt")
         print("Loaded pretrained DQNAgent dqn1")
 
     dqn2 = DQNAgent(env, "dqn2")
-    if os.path.exists(f"checkpoints/{dqn2}__final__.pt"):
-        dqn2.load(f"checkpoints/{dqn2}__final__.pt")
+    if os.path.exists(f"checkpoints/{dqn2}/final.pt"):
+        dqn2.load(f"checkpoints/{dqn2}/final.pt")
         print("Loaded pretrained DQNAgent dqn2")
 
     RANDOM_LINEUP = [dqn1,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
-    ALL_IN_PAIR_LINEUP = [dqn1, AllInPairAgent(
+    ALL_IN_PAIR_LINEUP = [dqn2, AllInPairAgent(
         env), AllInPairAgent(env), AllInPairAgent(env)]
 
     DQN_LINEUP = [dqn1, dqn2, RandomAllInFoldAgent(
@@ -218,8 +218,8 @@ def main():
     eval_size = 100
 
     train_and_evaluate(env, N_total, train_size, eval_size,
-                       training_lineup=DQN_LINEUP,
-                       evaluation_lineups=[DQN_LINEUP])
+                       training_lineup=ALL_IN_PAIR_LINEUP,
+                       evaluation_lineups=[ALL_IN_PAIR_LINEUP])
    
     env.close()
     
