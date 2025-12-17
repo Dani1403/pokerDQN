@@ -205,9 +205,9 @@ def main():
     env = simulation.PokerTournament()
 
     dqn = DQNAgent(env, "dqn")
-    # if os.path.exists(f"checkpoints/{dqn1}/final.pt"):
-    #     dqn1.load(f"checkpoints/{dqn1}/final.pt")
-    #     print("Loaded pretrained DQNAgent dqn1")
+    if os.path.exists(f"checkpoints/{dqn}/final.pt"):
+        dqn.load(f"checkpoints/{dqn}/final.pt")
+        print(f"Loaded pretrained DQNAgent {dqn}")
 
     # dqn2 = DQNAgent(env, "dqn2")
     # if os.path.exists(f"checkpoints/{dqn2}/final.pt"):
@@ -220,10 +220,7 @@ def main():
     POOL = [RandomAllInFoldAgent, AllInPairAgent, TwoHighAgent, SuitedAgent]
 
 
-    train_and_evaluate(env, N_total=8000, learn_size=1000, eval_size=500,
-                       training_lineup=RANDOM_LINEUP,
-                       evaluation_lineups=[RANDOM_LINEUP,ALL_IN_PAIR_LINEUP,TWO_HIGH_LINEUP])
-    train_and_evaluate(env, N_total=8000, learn_size=1000, eval_size=500,
+    train_and_evaluate(env, N_total=10_000, learn_size=1000, eval_size=200,
                        training_lineup=ALL_IN_PAIR_LINEUP,
                        evaluation_lineups=[RANDOM_LINEUP,ALL_IN_PAIR_LINEUP,TWO_HIGH_LINEUP])
     
