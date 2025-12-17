@@ -31,14 +31,14 @@ H_PARAMS = {
     'STATE_DIM': 8,
     'HIDDEN_DIM': 128,
     'GAMMA': 0.99,
-    'LR': 3e-4,
+    'LR': 1e-4,
     'BATCH_SIZE': 64,
-    'BUFFER_SIZE': 2_000_000,
-    'TARGET_SYNC': 1000,
+    'BUFFER_SIZE': 500_000,
+    'TARGET_SYNC': 2000,
     'FREQ_TRAIN': 32,
     'EPS_START': 1.0,
-    'EPS_END': 0.15,
-    'EPS_DECAY': 300_000,
+    'EPS_END': 0.05,
+    'EPS_DECAY': 400_000,
 }
 
 class DuelingDQN(nn.Module):
@@ -152,7 +152,8 @@ class DQNAgent(nn.Module):
 
         active_norm = sum(obs['active']) / self.env.num_players
 
-        call_norm = obs['call'] / obs['pot'] + 1e-6
+        call_ratio = obs['call'] / (obs['pot'] + 1e-6)
+        call_norm = np.clip(call_ratio, 0.0, 5.0) / 5.0
 
         state = np.array([
             low_norm,
@@ -248,8 +249,6 @@ class DQNAgent(nn.Module):
         with torch.no_grad():
             avg_q = q_values.mean().item()
         self.writer.add_scalar("Q_values/avg_q", avg_q, self.global_step)
-
-        self.global_step += 1
 
 
         self.train_steps += 1

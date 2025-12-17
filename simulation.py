@@ -129,7 +129,7 @@ class PokerTournament(gym.Env):
             self._hands_played += 1
             if self._hands_played % self._hands_per_level == 0:
                 self._level += 1
-            self._set_blinds
+            self._set_blinds()
 
         if done:
             # update busted array 

@@ -43,7 +43,9 @@ def run_tournament(env, agents, evaluate=False):
 
         if not done:
             reward = stack_diff
-            reward = [min(r // env.table.dealer.blinds[1], env.max_stack_bb - 1) for r in reward]
+            bb = env.table.dealer.blinds[1]
+            cap = env.max_stack_bb - 1
+            reward = [int(np.clip(r // bb, -cap, cap)) for r in stack_diff]
 
         # Training step
         if not evaluate:
@@ -202,31 +204,32 @@ def main():
 
     env = simulation.PokerTournament()
 
-    dqn1 = DQNAgent(env, "dqn1")
-    if os.path.exists(f"checkpoints/{dqn1}/final.pt"):
-        dqn1.load(f"checkpoints/{dqn1}/final.pt")
-        print("Loaded pretrained DQNAgent dqn1")
+    dqn = DQNAgent(env, "dqn")
+    # if os.path.exists(f"checkpoints/{dqn1}/final.pt"):
+    #     dqn1.load(f"checkpoints/{dqn1}/final.pt")
+    #     print("Loaded pretrained DQNAgent dqn1")
 
-    dqn2 = DQNAgent(env, "dqn2")
-    if os.path.exists(f"checkpoints/{dqn2}/final.pt"):
-        dqn2.load(f"checkpoints/{dqn2}/final.pt")
-        print("Loaded pretrained DQNAgent dqn2")
+    # dqn2 = DQNAgent(env, "dqn2")
+    # if os.path.exists(f"checkpoints/{dqn2}/final.pt"):
+    #     dqn2.load(f"checkpoints/{dqn2}/final.pt")
+    #     print("Loaded pretrained DQNAgent dqn2")
 
-    RANDOM_LINEUP = [dqn1,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
-    ALL_IN_PAIR_LINEUP = [dqn2, AllInPairAgent(
-        env), AllInPairAgent(env), AllInPairAgent(env)]
+    RANDOM_LINEUP = [dqn,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
+    ALL_IN_PAIR_LINEUP = [dqn, AllInPairAgent(env), AllInPairAgent(env), AllInPairAgent(env)]
+    TWO_HIGH_LINEUP = [dqn, TwoHighAgent(env), TwoHighAgent(env), TwoHighAgent(env)]
+    POOL = [RandomAllInFoldAgent, AllInPairAgent, TwoHighAgent, SuitedAgent]
 
-    DQN_LINEUP = [dqn1, dqn2, RandomAllInFoldAgent(
-        env), RandomAllInFoldAgent(env)]
 
-    N_total = 8000
-    train_size = 1000
-    eval_size = 100
-
-    train_and_evaluate(env, N_total, train_size, eval_size,
+    train_and_evaluate(env, N_total=8000, learn_size=1000, eval_size=500,
+                       training_lineup=RANDOM_LINEUP,
+                       evaluation_lineups=[RANDOM_LINEUP,ALL_IN_PAIR_LINEUP,TWO_HIGH_LINEUP])
+    train_and_evaluate(env, N_total=8000, learn_size=1000, eval_size=500,
                        training_lineup=ALL_IN_PAIR_LINEUP,
-                       evaluation_lineups=[ALL_IN_PAIR_LINEUP])
-   
+                       evaluation_lineups=[RANDOM_LINEUP,ALL_IN_PAIR_LINEUP,TWO_HIGH_LINEUP])
+    
+
+
+
     env.close()
     
 if __name__ == "__main__":
