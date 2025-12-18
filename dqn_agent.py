@@ -32,8 +32,8 @@ H_PARAMS = {
     'HIDDEN_DIM': 128,
     'GAMMA': 0.99,
     'LR': 1e-4,
-    'BATCH_SIZE': 64,
-    'BUFFER_SIZE': 500_000,
+    'BATCH_SIZE': 512,
+    'BUFFER_SIZE': 1_000_000,
     'TARGET_SYNC': 2000,
     'FREQ_TRAIN': 32,
     'EPS_START': 1.0,
@@ -63,7 +63,7 @@ class DuelingDQN(nn.Module):
 
 
 class DQNAgent(nn.Module):
-    def __init__(self, env, name):
+    def __init__(self, env, name, device=(torch.device("cuda" if torch.cuda.is_available() else "cpu")), enable_tb=True):
         super().__init__()
 
         self.env = env
@@ -83,8 +83,8 @@ class DQNAgent(nn.Module):
         self.epsilon = self.epsilon_start
         self.freq_train = H_PARAMS['FREQ_TRAIN']
 
-        self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device
+        self.enable_tb = enable_tb
 
         self.net = DuelingDQN(self.state_dim, self.hidden_dim, self.n_actions)
         self.target_net = DuelingDQN(self.state_dim, self.hidden_dim, self.n_actions)
@@ -101,7 +101,8 @@ class DQNAgent(nn.Module):
         self.train_steps = 0
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.writer = SummaryWriter(f"logs/run_{self.name}_{timestamp}")
+        if enable_tb:
+            self.writer = SummaryWriter(f"logs/run_{self.name}_{timestamp}")
         self.global_step = 0
 
 
@@ -241,14 +242,15 @@ class DQNAgent(nn.Module):
 
         # Logging
         # Log metrics
-        if self.global_step % 100 == 0:
+        if self.global_step % 100 == 0 and self.enable_tb:
             self.writer.add_scalar("Loss/TD_Error", loss.item(), self.global_step)
             self.writer.add_scalar("Policy/Epsilon", self.epsilon, self.global_step)
 
         # Log average Q-values
         with torch.no_grad():
             avg_q = q_values.mean().item()
-        self.writer.add_scalar("Q_values/avg_q", avg_q, self.global_step)
+        if self.enable_tb:
+            self.writer.add_scalar("Q_values/avg_q", avg_q, self.global_step)
 
 
         self.train_steps += 1

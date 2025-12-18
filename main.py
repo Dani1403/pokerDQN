@@ -1,4 +1,8 @@
+from gc import enable
 import time
+
+import torch
+from torch import t
 from qagent import QAgent
 from dqn_agent import DQNAgent
 from simconfig import PRIZE_POOL
@@ -12,8 +16,11 @@ import sys
 from datetime import datetime
 import os
 from poker_agents import *
+import multiprocessing as mp
 
-def run_tournament(env, agents, evaluate=False):
+def run_tournament(env, agents, evaluate=False, collect_transitions=False):
+
+    transitions = []
 
     obs, _ = env.reset(options={"reset_button": True, "reset_stacks": True})
     prev_stacks = obs['stacks'].copy()
@@ -24,6 +31,7 @@ def run_tournament(env, agents, evaluate=False):
         player_idx = env.table.dealer.action
         curr_agent = agents[player_idx]
 
+        #acton selection
         if isinstance(curr_agent, (QAgent, DQNAgent)):
             state = curr_agent._preprocess_state(obs)
             action = curr_agent.act(state)
@@ -40,29 +48,81 @@ def run_tournament(env, agents, evaluate=False):
         # reward shaping
         new_stacks = next_obs['stacks'].copy()
         stack_diff = [new_stacks[i] - prev_stacks[i] for i in range(env.num_players)]
-
         if not done:
             reward = stack_diff
             bb = env.table.dealer.blinds[1]
             cap = env.max_stack_bb - 1
             reward = [int(np.clip(r // bb, -cap, cap)) for r in stack_diff]
 
-        # Training step
-        if not evaluate:
-            for i, agent in enumerate(agents):
-                if i == player_idx and isinstance(agent, (QAgent, DQNAgent)):
-                    agent.update_parameters(
-                        state,
-                        action,
-                        reward[i],
-                        next_state,
-                        done
-                    )
+        # Training step or collect transition
+        if isinstance(curr_agent, DQNAgent):
+            if collect_transitions:
+                transitions.append((state, action, reward[player_idx], next_state, done))
+
+            elif not evaluate:
+                curr_agent.update_parameters(
+                    state,
+                    action,
+                    reward[player_idx],
+                    next_state,
+                    done
+                )
 
         prev_stacks = new_stacks
         obs = next_obs
+    if collect_transitions:
+        return transitions
+    else:
+        return reward
 
-    return reward
+def worker(worker_id, queue, model_path, opponents, stop_event, sync_every, worker_epsilon):
+    queue.cancel_join_thread()
+    env = simulation.PokerTournament()
+    dqn = DQNAgent(env, f"worker_{worker_id}", device="cpu", enable_tb=False)
+    dqn.load(model_path, map_location="cpu")
+    dqn.epsilon = worker_epsilon
+    dqn.net.eval()
+    local_steps = 0
+    lineup = [dqn] + [op(env) for op in opponents]
+
+    while not stop_event.is_set():
+        transitions = run_tournament(env, lineup, evaluate=False, collect_transitions=True)
+        for t in transitions:
+            try: 
+                queue.put(t, timeout=0.1)
+            except:
+                pass
+            local_steps += 1
+
+            if local_steps % sync_every == 0:
+                try:
+                    dqn.load(model_path, map_location="cpu")
+                    dqn.epsilon = worker_epsilon
+                except Exception as e:
+                    pass
+    env.close()
+    try:
+        dqn.writer.close()
+    except:
+        pass
+    print("worker exit")
+
+def learner(dqn, queue, env, stop_event, max_transitions, save_every, model_path):
+    processed = 0
+    while processed < max_transitions and not stop_event.is_set():
+        try:
+            state, action, reward, next_state, done = queue.get(timeout=1)
+        except Exception:
+            continue
+        dqn.update_parameters(state, action, reward, next_state, done)
+        processed += 1
+        if processed % save_every == 0:
+            dqn.save(model_path)
+            print(f"[LEARNER] Saved model at {processed} transitions")
+
+    dqn.save(model_path)
+    stop_event.set()
+
 
 """ must provide a fixed lineup """
 def run_n_tournaments(env, n_tournaments, evaluate=False, fixed_lineup=None, desc=None):
@@ -223,16 +283,59 @@ def main():
     train_and_evaluate(env, N_total=100_000, learn_size=20_000, eval_size=1_000,
                        training_lineup=ALL_IN_PAIR_LINEUP,
                        evaluation_lineups=[ALL_IN_PAIR_LINEUP])
-    
+
+    env.close()
 
 
+def main_mp():
+    mp.set_start_method('spawn', force=True)
+    env = simulation.PokerTournament()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    dqn = DQNAgent(env, "dqn_mp", device=device, enable_tb=True)
+    model_path = "checkpoints/dqn/shared.pt"
+    os.makedirs(os.path.dirname(model_path), exist_ok=True)
+    dqn.save(model_path)
+    if os.path.exists(f"checkpoints/dqn/final.pt"):
+        dqn.load(f"checkpoints/dqn/final.pt", map_location=device)
+        print(f"Loaded pretrained DQNAgent dqn")
+    queue = mp.Queue(maxsize=50_000)
+    stop_event = mp.Event()
+    opponents = [AllInPairAgent, AllInPairAgent, AllInPairAgent]
+
+    workers = []
+    for wid in range(8):
+        p = mp.Process(target=worker, args=(wid, queue, model_path, opponents, stop_event, 5_000, 0.5))
+        p.start()
+        workers.append(p)
+
+    learner(dqn, queue, env, stop_event, max_transitions=10_000_000,
+            save_every=50_000, model_path=model_path)
+
+    stop_event.set()
+    queue.close()
+    queue.join_thread()
+    for p in workers:
+        p.join(timeout=10)
+        print("joined?", not p.is_alive(), "exitcode:", p.exitcode)   
+    print("All workers joined, starting eval")
+    #evaluate model 
+    dqn.load(model_path, map_location="cpu")
+    evaluation_lineup = [dqn, AllInPairAgent(
+        env), AllInPairAgent(env), AllInPairAgent(env)]
+    rewards_per_tournament = evaluate(
+        env, 5_000, evaluation_lineup, desc="Final Evaluation")
+    fig, ax = plt.subplots(figsize=(12, 8))
+    plot_results(rewards_per_tournament, evaluation_lineup,
+                 5_000, window_size=200, ax=ax)
+    plt.tight_layout()
+    save_fig(fig, name=f"final_evaluation_mp_2.png", directory="eval_logs")
 
     env.close()
     
 if __name__ == "__main__":
     #pr = cProfile.Profile()
     #pr.enable()
-    main()
+    main_mp()
     #pr.disable()
     #s = io.StringIO()
     #pstats.Stats(pr, stream=s).strip_dirs().sort_stats("cumtime").print_stats(40)
