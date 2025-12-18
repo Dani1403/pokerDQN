@@ -1,6 +1,6 @@
-from gc import enable
 import time
 
+from matplotlib import axes
 import torch
 from torch import t
 from qagent import QAgent
@@ -107,6 +107,43 @@ def worker(worker_id, queue, model_path, opponents, stop_event, sync_every, work
         pass
     print("worker exit")
 
+def worker_eval(worker_id, model_path, opponents, n_tournaments, return_dict):
+    env = simulation.PokerTournament()
+    dqn = DQNAgent(env, f"eval_worker_{worker_id}",
+                   device="cpu", enable_tb=False)
+    dqn.load(model_path, map_location="cpu")
+    dqn.epsilon = 0.0
+    dqn.net.eval()
+    lineup = [dqn] + [op(env) for op in opponents]
+    rewards_per_tournament = evaluate(
+        env, n_tournaments, lineup, desc=None, show_tqdm=False)
+    return_dict[worker_id] = rewards_per_tournament
+    env.close()
+    print("eval worker exit")
+
+
+def eval_lineup_parallel(name, model_path, opponents, n_workers, n_tournaments_per_worker, return_dict):
+    mp.set_start_method('spawn', force=True)
+    manager = mp.Manager()
+    local_return = manager.dict()
+    workers = []
+    for wid in range(n_workers):
+        p = mp.Process(
+            target=worker_eval,
+            args=(wid, model_path, opponents,
+                  n_tournaments_per_worker, local_return)
+        )
+        p.start()
+        workers.append(p)
+
+    for p in workers:
+        p.join()
+    all_rewards = []
+    for wid in range(n_workers):
+        all_rewards.extend(local_return[wid])
+    return_dict[name] = all_rewards
+
+
 def learner(dqn, queue, env, stop_event, max_transitions, save_every, model_path):
     processed = 0
     while processed < max_transitions and not stop_event.is_set():
@@ -119,13 +156,27 @@ def learner(dqn, queue, env, stop_event, max_transitions, save_every, model_path
         if processed % save_every == 0:
             dqn.save(model_path)
             print(f"[LEARNER] Saved model at {processed} transitions")
+        #run evaluation so that there is 5 evaluations total. save figures with relevant name
+        if processed % (max_transitions // 5) == 0:
+            print(f"[LEARNER] Running evaluation at {processed} transitions")
+            dqn.save(model_path)
+            evaluation_lineup = [dqn, AllInPairAgent(
+                env), AllInPairAgent(env), AllInPairAgent(env)]
+            rewards_per_tournament = evaluate(
+                env, 5_000, evaluation_lineup, desc=f"Evaluation at {processed} transitions")
+            fig, ax = plt.subplots(figsize=(12, 8))
+            plot_results(rewards_per_tournament, evaluation_lineup,
+                         5_000, window_size=200, ax=ax)
+            plt.tight_layout()
+            save_fig(
+                fig, name=f"eval_at_{processed}_transitions_mp.png", directory="eval_logs")
 
     dqn.save(model_path)
     stop_event.set()
 
 
 """ must provide a fixed lineup """
-def run_n_tournaments(env, n_tournaments, evaluate=False, fixed_lineup=None, desc=None):
+def run_n_tournaments(env, n_tournaments, evaluate=False, fixed_lineup=None, desc=None, show_tqdm=True):
 
     rewards_per_tournament = []
     saved_epsilons = {}
@@ -136,7 +187,11 @@ def run_n_tournaments(env, n_tournaments, evaluate=False, fixed_lineup=None, des
                 saved_epsilons[agent] = agent.epsilon
                 agent.epsilon = 0.0
 
-    for tournament_idx in tqdm(range(n_tournaments), ascii=True, ncols=80, desc=desc):
+    iterator = range(n_tournaments)
+    if show_tqdm:
+        iterator = tqdm(iterator, ascii=True, ncols=80, desc=desc)
+
+    for _ in iterator:
 
         reward = run_tournament(env, fixed_lineup, evaluate)
 
@@ -162,9 +217,9 @@ def train(env, n_tournaments, lineup, desc):
     run_n_tournaments(env, n_tournaments, evaluate=False, fixed_lineup=lineup, desc=desc)
 
 
-def evaluate(env, n_tournaments, lineup, desc):
+def evaluate(env, n_tournaments, lineup, desc, show_tqdm=True):
     rewards_per_tournament = run_n_tournaments(
-        env, n_tournaments, evaluate=True, fixed_lineup=lineup, desc=desc)
+        env, n_tournaments, evaluate=True, fixed_lineup=lineup, desc=desc, show_tqdm=show_tqdm)
     return rewards_per_tournament
 
 def moving_average(x, window_size):
@@ -292,23 +347,20 @@ def main_mp():
     env = simulation.PokerTournament()
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dqn = DQNAgent(env, "dqn_mp", device=device, enable_tb=True)
-    model_path = "checkpoints/dqn/shared.pt"
+    model_path = "checkpoints/dqn_mp/shared.pt"
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
     dqn.save(model_path)
-    if os.path.exists(f"checkpoints/dqn/final.pt"):
-        dqn.load(f"checkpoints/dqn/final.pt", map_location=device)
-        print(f"Loaded pretrained DQNAgent dqn")
     queue = mp.Queue(maxsize=50_000)
     stop_event = mp.Event()
     opponents = [AllInPairAgent, AllInPairAgent, AllInPairAgent]
 
     workers = []
-    for wid in range(8):
+    for wid in range(12):
         p = mp.Process(target=worker, args=(wid, queue, model_path, opponents, stop_event, 5_000, 0.5))
         p.start()
         workers.append(p)
 
-    learner(dqn, queue, env, stop_event, max_transitions=10_000_000,
+    learner(dqn, queue, env, stop_event, max_transitions=25_000_000,
             save_every=50_000, model_path=model_path)
 
     stop_event.set()
@@ -328,14 +380,86 @@ def main_mp():
     plot_results(rewards_per_tournament, evaluation_lineup,
                  5_000, window_size=200, ax=ax)
     plt.tight_layout()
-    save_fig(fig, name=f"final_evaluation_mp_2.png", directory="eval_logs")
+    save_fig(fig, name=f"final_evaluation_mp_3.png", directory="eval_logs")
 
     env.close()
-    
+
+
+def main_eval():
+
+    model_path = "checkpoints/dqn_mp/shared.pt"
+
+    lineups = {
+        "AllInPair": [AllInPairAgent]*3,
+        "Random":    [RandomAllInFoldAgent]*3,
+        "TwoHigh":   [TwoHighAgent]*3,
+        "Suited":    [SuitedAgent]*3,
+    }
+
+    n_workers_per_lineup = 5
+    n_tournaments_per_worker = 2000
+
+    manager = mp.Manager()
+    final_results = manager.dict()
+
+    lineup_processes = []
+
+    # ---- start one process per lineup ----
+    for name, ops in lineups.items():
+        p = mp.Process(
+            target=eval_lineup_parallel,
+            args=(
+                name,
+                model_path,
+                ops,
+                n_workers_per_lineup,
+                n_tournaments_per_worker,
+                final_results
+            )
+        )
+        p.start()
+        lineup_processes.append(p)
+
+    # ---- wait for all lineups to finish ----
+    for p in lineup_processes:
+        p.join()
+
+    # ---- plotting (single process) ----
+    env = simulation.PokerTournament()
+    dqn = DQNAgent(env, "eval", device="cpu", enable_tb=False)
+    dqn.load(model_path, map_location="cpu")
+
+    n_lineups = len(final_results)
+    fig, axes = plt.subplots(n_lineups, 1, figsize=(16, 5*n_lineups), sharex=False)
+    if n_lineups == 1:
+        axes = [axes]
+
+    for ax, (name, rewards) in zip(axes, final_results.items()):
+        lineup = [dqn] + [op(env) for op in lineups[name]]
+
+        plot_results(
+            rewards,
+            lineup,
+            n_tournaments=len(rewards),
+            window_size=200,
+            ax=ax
+        )
+        ax.set_title(f"Evaluation against {name} lineup")
+
+    fig.suptitle("Final Evaluation of DQNAgent against various lineups", fontsize=16)
+    plt.tight_layout(rect=[0,0,1,0.97])
+    save_fig(fig, name="final_eval_longrun.png", directory="eval_logs")
+
+    env.close()
+
+
+
 if __name__ == "__main__":
     #pr = cProfile.Profile()
     #pr.enable()
-    main_mp()
+    #main()
+    #main_mp()
+    main_eval()
     #pr.disable()
     #s = io.StringIO()
     #pstats.Stats(pr, stream=s).strip_dirs().sort_stats("cumtime").print_stats(40)
