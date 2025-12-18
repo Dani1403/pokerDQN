@@ -1,5 +1,4 @@
 import time
-
 from matplotlib import axes
 import torch
 from torch import t
@@ -160,16 +159,7 @@ def learner(dqn, queue, env, stop_event, max_transitions, save_every, model_path
         if processed % (max_transitions // 5) == 0:
             print(f"[LEARNER] Running evaluation at {processed} transitions")
             dqn.save(model_path)
-            evaluation_lineup = [dqn, AllInPairAgent(
-                env), AllInPairAgent(env), AllInPairAgent(env)]
-            rewards_per_tournament = evaluate(
-                env, 5_000, evaluation_lineup, desc=f"Evaluation at {processed} transitions")
-            fig, ax = plt.subplots(figsize=(12, 8))
-            plot_results(rewards_per_tournament, evaluation_lineup,
-                         5_000, window_size=200, ax=ax)
-            plt.tight_layout()
-            save_fig(
-                fig, name=f"eval_at_{processed}_transitions_mp.png", directory="eval_logs")
+            main_eval(it=processed // (max_transitions // 5))
 
     dqn.save(model_path)
     stop_event.set()
@@ -316,29 +306,23 @@ def train_and_evaluate(env, N_total, learn_size, eval_size, training_lineup, eva
 
 
 def main():
-
     env = simulation.PokerTournament()
-
     dqn = DQNAgent(env, "dqn")
     if os.path.exists(f"checkpoints/{dqn}/final.pt"):
         dqn.load(f"checkpoints/{dqn}/final.pt")
         print(f"Loaded pretrained DQNAgent {dqn}")
-
     # dqn2 = DQNAgent(env, "dqn2")
     # if os.path.exists(f"checkpoints/{dqn2}/final.pt"):
     #     dqn2.load(f"checkpoints/{dqn2}/final.pt")
     #     print("Loaded pretrained DQNAgent dqn2")
-
     RANDOM_LINEUP = [dqn,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
     ALL_IN_PAIR_LINEUP = [dqn, AllInPairAgent(env), AllInPairAgent(env), AllInPairAgent(env)]
     TWO_HIGH_LINEUP = [dqn, TwoHighAgent(env), TwoHighAgent(env), TwoHighAgent(env)]
     POOL = [RandomAllInFoldAgent, AllInPairAgent, TwoHighAgent, SuitedAgent]
 
-
     train_and_evaluate(env, N_total=100_000, learn_size=20_000, eval_size=1_000,
                        training_lineup=ALL_IN_PAIR_LINEUP,
                        evaluation_lineups=[ALL_IN_PAIR_LINEUP])
-
     env.close()
 
 
@@ -347,10 +331,10 @@ def main_mp():
     env = simulation.PokerTournament()
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dqn = DQNAgent(env, "dqn_mp", device=device, enable_tb=True)
-    model_path = "checkpoints/dqn_mp/shared.pt"
+    model_path = "checkpoints/dqn_mp/longrun.pt"
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
     dqn.save(model_path)
-    queue = mp.Queue(maxsize=50_000)
+    queue = mp.Queue(maxsize=200_000)
     stop_event = mp.Event()
     opponents = [AllInPairAgent, AllInPairAgent, AllInPairAgent]
 
@@ -361,7 +345,7 @@ def main_mp():
         workers.append(p)
 
     learner(dqn, queue, env, stop_event, max_transitions=25_000_000,
-            save_every=50_000, model_path=model_path)
+            save_every=250_000, model_path=model_path)
 
     stop_event.set()
     queue.close()
@@ -380,15 +364,13 @@ def main_mp():
     plot_results(rewards_per_tournament, evaluation_lineup,
                  5_000, window_size=200, ax=ax)
     plt.tight_layout()
-    save_fig(fig, name=f"final_evaluation_mp_3.png", directory="eval_logs")
+    save_fig(fig, name=f"final_evaluation_longrun.png", directory="eval_logs")
 
     env.close()
 
 
-def main_eval():
-
-    model_path = "checkpoints/dqn_mp/shared.pt"
-
+def main_eval(it=0):
+    model_path = "checkpoints/dqn_mp/longrun.pt"
     lineups = {
         "AllInPair": [AllInPairAgent]*3,
         "Random":    [RandomAllInFoldAgent]*3,
@@ -396,8 +378,8 @@ def main_eval():
         "Suited":    [SuitedAgent]*3,
     }
 
-    n_workers_per_lineup = 5
-    n_tournaments_per_worker = 2000
+    n_workers_per_lineup = 2
+    n_tournaments_per_worker = 2500
 
     manager = mp.Manager()
     final_results = manager.dict()
@@ -448,9 +430,13 @@ def main_eval():
 
     fig.suptitle("Final Evaluation of DQNAgent against various lineups", fontsize=16)
     plt.tight_layout(rect=[0,0,1,0.97])
-    save_fig(fig, name="final_eval_longrun.png", directory="eval_logs")
+    save_fig(fig, name=f"final_evals_longrun_{it}.png", directory="eval_logs")
 
     env.close()
+
+
+
+
 
 
 
@@ -458,8 +444,8 @@ if __name__ == "__main__":
     #pr = cProfile.Profile()
     #pr.enable()
     #main()
-    #main_mp()
-    main_eval()
+    main_mp()
+    #main_eval()
     #pr.disable()
     #s = io.StringIO()
     #pstats.Stats(pr, stream=s).strip_dirs().sort_stats("cumtime").print_stats(40)

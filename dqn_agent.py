@@ -34,7 +34,7 @@ H_PARAMS = {
     'LR': 5e-5,
     'BATCH_SIZE': 128,
     'BUFFER_SIZE': 1_000_000,
-    'TARGET_SYNC': 2000,
+    'TARGET_SYNC': 5000,
     'FREQ_TRAIN': 32,
     'EPS_START': 1.0,
     'EPS_END': 0.05,
@@ -232,7 +232,7 @@ class DQNAgent(nn.Module):
                 (1 - dones) * next_q_target
             
         # Compute loss
-        loss = nn.HuberLoss(delta=10)(q_values, target_q_values)
+        loss = nn.MSELoss()(q_values, target_q_values)
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
