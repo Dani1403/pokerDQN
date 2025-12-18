@@ -220,9 +220,9 @@ def main():
     POOL = [RandomAllInFoldAgent, AllInPairAgent, TwoHighAgent, SuitedAgent]
 
 
-    train_and_evaluate(env, N_total=10_000, learn_size=1000, eval_size=200,
+    train_and_evaluate(env, N_total=100_000, learn_size=20_000, eval_size=1_000,
                        training_lineup=ALL_IN_PAIR_LINEUP,
-                       evaluation_lineups=[RANDOM_LINEUP,ALL_IN_PAIR_LINEUP,TWO_HIGH_LINEUP])
+                       evaluation_lineups=[ALL_IN_PAIR_LINEUP])
     
 
 
