@@ -155,11 +155,11 @@ def learner(dqn, queue, env, stop_event, max_transitions, save_every, model_path
         if processed % save_every == 0:
             dqn.save(model_path)
             print(f"[LEARNER] Saved model at {processed} transitions")
-        #run evaluation so that there is 5 evaluations total. save figures with relevant name
-        if processed % (max_transitions // 5) == 0:
-            print(f"[LEARNER] Running evaluation at {processed} transitions")
-            dqn.save(model_path)
-            main_eval(it=processed // (max_transitions // 5))
+        # #run evaluation so that there is 5 evaluations total. save figures with relevant name
+        # if processed % (max_transitions // 5) == 0:
+        #     print(f"[LEARNER] Running evaluation at {processed} transitions")
+        #     dqn.save(model_path)
+        #     main_eval(it=processed // (max_transitions // 5))
 
     dqn.save(model_path)
     stop_event.set()
@@ -331,9 +331,14 @@ def main_mp():
     env = simulation.PokerTournament()
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dqn = DQNAgent(env, "dqn_mp", device=device, enable_tb=True)
-    model_path = "checkpoints/dqn_mp/longrun.pt"
+    model_path = "checkpoints/dqn_7state/longrun.pt"
+    if os.path.exists(model_path):
+        dqn.load(model_path, map_location="cpu")
+        print("Loaded pretrained DQNAgent dqn_mp")
+
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
-    dqn.save(model_path)
+
+    #dqn.save(model_path)
     queue = mp.Queue(maxsize=200_000)
     stop_event = mp.Event()
     opponents = [AllInPairAgent, AllInPairAgent, AllInPairAgent]
@@ -353,24 +358,13 @@ def main_mp():
     for p in workers:
         p.join(timeout=10)
         print("joined?", not p.is_alive(), "exitcode:", p.exitcode)   
-    print("All workers joined, starting eval")
-    #evaluate model 
-    dqn.load(model_path, map_location="cpu")
-    evaluation_lineup = [dqn, AllInPairAgent(
-        env), AllInPairAgent(env), AllInPairAgent(env)]
-    rewards_per_tournament = evaluate(
-        env, 5_000, evaluation_lineup, desc="Final Evaluation")
-    fig, ax = plt.subplots(figsize=(12, 8))
-    plot_results(rewards_per_tournament, evaluation_lineup,
-                 5_000, window_size=200, ax=ax)
-    plt.tight_layout()
-    save_fig(fig, name=f"final_evaluation_longrun.png", directory="eval_logs")
 
     env.close()
 
 
-def main_eval(it=0):
-    model_path = "checkpoints/dqn_mp/longrun.pt"
+def main_eval(it=3):
+    print("[MAIN EVAL] Starting final evaluation...")
+    model_path = "checkpoints/dqn_7state/longrun.pt"
     lineups = {
         "AllInPair": [AllInPairAgent]*3,
         "Random":    [RandomAllInFoldAgent]*3,
@@ -445,7 +439,7 @@ if __name__ == "__main__":
     #pr.enable()
     #main()
     main_mp()
-    #main_eval()
+    main_eval()
     #pr.disable()
     #s = io.StringIO()
     #pstats.Stats(pr, stream=s).strip_dirs().sort_stats("cumtime").print_stats(40)
