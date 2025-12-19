@@ -28,17 +28,17 @@ import random
 
 H_PARAMS = {
     'N_ACTIONS': 2,
-    'STATE_DIM': 8,
+    'STATE_DIM': 7,
     'HIDDEN_DIM': 128,
     'GAMMA': 0.99,
-    'LR': 5e-5,
+    'LR': 1e-4,
     'BATCH_SIZE': 128,
-    'BUFFER_SIZE': 1_000_000,
+    'BUFFER_SIZE': 2_000_000,
     'TARGET_SYNC': 5000,
-    'FREQ_TRAIN': 32,
+    'FREQ_TRAIN': 16,
     'EPS_START': 1.0,
     'EPS_END': 0.05,
-    'EPS_DECAY': 400_000,
+    'EPS_DECAY': 5_000_000,
 }
 
 class DuelingDQN(nn.Module):
@@ -153,8 +153,8 @@ class DQNAgent(nn.Module):
 
         active_norm = sum(obs['active']) / self.env.num_players
 
-        call_ratio = obs['call'] / (obs['pot'] + 1e-6)
-        call_norm = np.clip(call_ratio, 0.0, 5.0) / 5.0
+        # call_ratio = obs['call'] / (obs['pot'] + 1e-6)
+        # call_norm = np.clip(call_ratio, 0.0, 5.0) / 5.0
 
         state = np.array([
             low_norm,
@@ -163,8 +163,7 @@ class DQNAgent(nn.Module):
             stack_norm,
             active_norm,
             shortest_norm,
-            position_norm,
-            call_norm
+            position_norm
         ], dtype=np.float32)
 
         return state
@@ -232,7 +231,7 @@ class DQNAgent(nn.Module):
                 (1 - dones) * next_q_target
             
         # Compute loss
-        loss = nn.MSELoss()(q_values, target_q_values)
+        loss = nn.SmoothL1Loss()(q_values, target_q_values)
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
