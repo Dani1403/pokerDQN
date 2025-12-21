@@ -308,10 +308,10 @@ def main():
     if os.path.exists(f"checkpoints/{dqn}/final.pt"):
         dqn.load(f"checkpoints/{dqn}/final.pt")
         print(f"Loaded pretrained DQNAgent {dqn}")
-    # dqn2 = DQNAgent(env, "dqn2")
-    # if os.path.exists(f"checkpoints/{dqn2}/final.pt"):
-    #     dqn2.load(f"checkpoints/{dqn2}/final.pt")
-    #     print("Loaded pretrained DQNAgent dqn2")
+    dqn2 = DQNAgent(env, "dqn2")
+    if os.path.exists(f"checkpoints/{dqn2}/final.pt"):
+        dqn2.load(f"checkpoints/{dqn2}/final.pt")
+        print("Loaded pretrained DQNAgent dqn2")
     RANDOM_LINEUP = [dqn,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
     ALL_IN_PAIR_LINEUP = [dqn, AllInPairAgent(env), AllInPairAgent(env), AllInPairAgent(env)]
     TWO_HIGH_LINEUP = [dqn, TwoHighAgent(env), TwoHighAgent(env), TwoHighAgent(env)]
@@ -336,7 +336,7 @@ def main_mp():
 
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
-    #dqn.save(model_path)
+    dqn.save(model_path)
     queue = mp.Queue(maxsize=200_000)
     stop_event = mp.Event()
     opponents = [AllInPairAgent, AllInPairAgent, AllInPairAgent]
@@ -378,11 +378,12 @@ def main_mp():
             continue
         iter_model_path = f"{model_path[:-3]}_{it+1}.pt"
         if os.path.exists(iter_model_path):
+            print(f"[MAIN EVAL] Evaluating checkpoint at iteration {it+1}")
             parallel_eval(iter_model_path, name=f"eval_iter_{it+1}.png", eval_dir=eval_dir)
     if os.path.exists(model_path):
         parallel_eval(model_path, name="evaluation_final.png", eval_dir=eval_dir)
 
-def parallel_eval(model_path, name, eval_dir):
+def parallel_eval(model_path, fig_name, eval_dir):
     print("[MAIN EVAL] Starting evaluation of iteration")
     lineups = {
         "AllInPair": [AllInPairAgent]*3,
@@ -390,21 +391,17 @@ def parallel_eval(model_path, name, eval_dir):
         "TwoHigh":   [TwoHighAgent]*3,
         "Suited":    [SuitedAgent]*3,
     }
-
     n_workers_per_lineup = 2
-    n_tournaments_per_worker = 2500
-
+    n_tournaments_per_worker = 1000
     manager = mp.Manager()
     final_results = manager.dict()
-
     lineup_processes = []
-
     # ---- start one process per lineup ----
-    for name, ops in lineups.items():
+    for lineup_name, ops in lineups.items():
         p = mp.Process(
             target=eval_lineup_parallel,
             args=(
-                name,
+                lineup_name,
                 model_path,
                 ops,
                 n_workers_per_lineup,
@@ -414,21 +411,17 @@ def parallel_eval(model_path, name, eval_dir):
         )
         p.start()
         lineup_processes.append(p)
-
     # ---- wait for all lineups to finish ----
     for p in lineup_processes:
         p.join()
-
     # ---- plotting (single process) ----
     env = simulation.PokerTournament()
     dqn = DQNAgent(env, "eval", device="cpu", enable_tb=False)
     dqn.load(model_path, map_location="cpu")
-
     n_lineups = len(final_results)
     fig, axes = plt.subplots(n_lineups, 1, figsize=(16, 5*n_lineups), sharex=False)
     if n_lineups == 1:
         axes = [axes]
-
     for ax, (name, rewards) in zip(axes, final_results.items()):
         lineup = [dqn] + [op(env) for op in lineups[name]]
 
@@ -440,20 +433,29 @@ def parallel_eval(model_path, name, eval_dir):
             ax=ax
         )
         ax.set_title(f"Evaluation against {name} lineup")
-
     fig.suptitle("Evaluation of DQNAgent against various lineups", fontsize=16)
     plt.tight_layout(rect=[0,0,1,0.97])
-    save_fig(fig, name=name, directory=eval_dir)
-
+    save_fig(fig, name=fig_name, directory=eval_dir)
     env.close()
 
+
+def eval_checkpoint_dir(checkpoint_dir):
+    checkpoint_files = [f for f in os.listdir(
+        checkpoint_dir) if f.endswith('.pt')]
+    checkpoint_files.sort()
+    for ckpt in checkpoint_files:
+        model_path = os.path.join(checkpoint_dir, ckpt)
+        print(f"[EVAL] Evaluating {model_path}")
+        parallel_eval(model_path, fig_name=f"eval_{ckpt[:-3]}.png",
+                      eval_dir=f"eval_logs/{os.path.basename(checkpoint_dir)}")
 
 
 if __name__ == "__main__":
     #pr = cProfile.Profile()
     #pr.enable()
     #main()
-    main_mp()
+    #main_mp()
+    eval_checkpoint_dir("checkpoints/dqn/20251218_085359_791915") #best model so far
     #pr.disable()
     #s = io.StringIO()
     #pstats.Stats(pr, stream=s).strip_dirs().sort_stats("cumtime").print_stats(40)

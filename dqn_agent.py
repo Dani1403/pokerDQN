@@ -153,8 +153,8 @@ class DQNAgent(nn.Module):
 
         active_norm = sum(obs['active']) / self.env.num_players
 
-        # call_ratio = obs['call'] / (obs['pot'] + 1e-6)
-        # call_norm = np.clip(call_ratio, 0.0, 5.0) / 5.0
+        call_ratio = obs['call'] / (obs['pot'] + 1e-6)
+        call_norm = np.clip(call_ratio, 0.0, 5.0) / 5.0
 
         state = np.array([
             low_norm,
@@ -163,7 +163,8 @@ class DQNAgent(nn.Module):
             stack_norm,
             active_norm,
             shortest_norm,
-            position_norm
+            position_norm,
+            call_norm
         ], dtype=np.float32)
 
         return state
