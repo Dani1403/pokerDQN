@@ -455,7 +455,8 @@ if __name__ == "__main__":
     #pr.enable()
     #main()
     #main_mp()
-    eval_checkpoint_dir("checkpoints/dqn/20251218_085359_791915") #best model so far
+    eval_checkpoint_dir("checkpoints/dqn/20251217_205057_434015") #continuing of best model
+    eval_checkpoint_dir("checkpoints/dqn/20251218_085359_791915") #best model so far at the end
     #pr.disable()
     #s = io.StringIO()
     #pstats.Stats(pr, stream=s).strip_dirs().sort_stats("cumtime").print_stats(40)

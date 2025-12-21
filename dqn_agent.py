@@ -28,17 +28,17 @@ import random
 
 H_PARAMS = {
     'N_ACTIONS': 2,
-    'STATE_DIM': 7,
+    'STATE_DIM': 8,
     'HIDDEN_DIM': 128,
     'GAMMA': 0.99,
     'LR': 1e-4,
-    'BATCH_SIZE': 128,
-    'BUFFER_SIZE': 2_000_000,
-    'TARGET_SYNC': 5000,
-    'FREQ_TRAIN': 16,
+    'BATCH_SIZE': 64,
+    'BUFFER_SIZE': 500_000,
+    'TARGET_SYNC': 2000,
+    'FREQ_TRAIN': 32,
     'EPS_START': 1.0,
     'EPS_END': 0.05,
-    'EPS_DECAY': 5_000_000,
+    'EPS_DECAY': 400_000,
 }
 
 class DuelingDQN(nn.Module):
@@ -232,7 +232,7 @@ class DQNAgent(nn.Module):
                 (1 - dones) * next_q_target
             
         # Compute loss
-        loss = nn.SmoothL1Loss()(q_values, target_q_values)
+        loss = nn.MSELoss()(q_values, target_q_values)
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
