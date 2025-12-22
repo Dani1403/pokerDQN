@@ -23,41 +23,37 @@ def train(env, n_tournaments, lineup, desc):
     run_n_tournaments(env, n_tournaments, evaluate=False, fixed_lineup=lineup, desc=desc)
 
 
-def train_and_evaluate(env, N_total, learn_size, eval_size, training_lineup, evaluation_lineups):
+def train_and_save(env, N_total, learn_size, training_lineup, checkpoint_root="checkpoints"):
     n_evaluations = N_total // learn_size
-    window_size = max(50, eval_size // 20)
-    fig, axes = plt.subplots(
-        n_evaluations, 
-        len(evaluation_lineups), 
-        figsize=(50, 12 * n_evaluations), 
-        sharex='col')    
-    if n_evaluations == 1:
-        axes = np.array([axes])
-    if len(evaluation_lineups) == 1:
-        axes = np.expand_dims(axes, axis=1)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    agent_ckpt_dirs = {}
+    for agent in training_lineup:
+        if hasattr(agent, "save"):
+            agent_name = str(agent)
+            ckpt_dir = os.path.join(checkpoint_root, f"{agent_name}_{timestamp}")
+            os.makedirs(ckpt_dir, exist_ok=True)
+            agent_ckpt_dirs[agent] = ckpt_dir
+
+    #training loop 
     for eval_idx in range(n_evaluations):
-        train(env, learn_size, training_lineup, desc=f"Running training session {eval_idx+1}")
-        if eval_idx == 0:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        for agent in training_lineup:
-            if hasattr(agent, "save"):
-                agent.save(f"checkpoints/{agent}/{timestamp}/iter_{eval_idx+1}.pt")
-                if eval_idx == n_evaluations - 1:
-                    agent.save(f"checkpoints/{agent}/final.pt")
-        for ax, lineup in zip(axes[eval_idx], evaluation_lineups):
-            rewards_per_tournament = evaluate(
-                env, eval_size, lineup, desc=f"Evaluating after training session {eval_idx+1}")
-            plot_results(rewards_per_tournament, lineup,
-                         eval_size, window_size, ax)
-    plt.tight_layout()
-    save_fig(fig, directory="eval_logs")
+        print(f"[TRAINING] Starting training iteration {eval_idx + 1}/{n_evaluations}")
+        train(env, learn_size, training_lineup,
+              desc=f"Training Iteration {eval_idx + 1}/{n_evaluations}")
+        # save checkpoints
+        for agent, ckpt_dir in agent_ckpt_dirs.items():
+            agent.save(os.path.join(ckpt_dir, f"iter_{eval_idx + 1}_{(eval_idx+1) * learn_size}.pt"))
 
+    # save final model after last iteration
+    for agent, ckpt_dir in agent_ckpt_dirs.items():
+        agent.save(os.path.join(ckpt_dir, f"final.pt"))
 
+    print("[TRAINING] Training completed and checkpoints saved.")
+    ckpt_dirs = {str(agent): dir for agent, dir in agent_ckpt_dirs.items()}
+    return ckpt_dirs
 
 """
 Multiprocessing training setup
 """
-
 def worker(worker_id, queue, model_path, opponents, stop_event, sync_every, worker_epsilon):
     queue.cancel_join_thread()
     env = simulation.PokerTournament()

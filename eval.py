@@ -7,11 +7,10 @@ import simulation
 from dqn_agent import DQNAgent
 from poker_agents import *
 from run_tournaments import run_n_tournaments
-
+import os
 
 def moving_average(x, window_size):
     return np.convolve(x, np.ones(window_size)/window_size, mode='valid')
-
 
 def placements(rewards_per_tournament):
     arr = np.array(rewards_per_tournament)
@@ -72,21 +71,39 @@ def plot_results(rewards_per_tournament, agents, n_tournaments, window_size, ax)
     ax.grid(True, which='both', axis='y', linestyle='--', alpha=0.4)
 
 
-def worker_eval(worker_id, model_path, opponents, n_tournaments, return_dict):
+"""
+Multiprocessing evaluation setup
+"""
+
+
+"""
+agents = [
+    {'type' : AgentClass, 'model_path' : 'path/to/model.pt' or None, 'name': name of agent},
+    ...
+]
+"""
+def worker_eval(worker_id, agents, n_tournaments, return_dict):
     env = simulation.PokerTournament()
-    dqn = DQNAgent(env, f"eval_worker_{worker_id}",
-                   device="cpu", enable_tb=False)
-    dqn.load(model_path, map_location="cpu")
-    dqn.epsilon = 0.0
-    dqn.net.eval()
-    lineup = [dqn] + [op(env) for op in opponents]
+    lineup = []
+    for agent in agents:
+        agent_type = agent['type']
+        if isinstance(agent_type, type) and issubclass(agent_type, DQNAgent):
+            dqn = agent_type(
+                env, f"eval_worker_{worker_id}_{agent['name']}", device="cpu", enable_tb=False)
+            if agent.get('model_path') is not None:
+                dqn.load(agent['model_path'], map_location="cpu")
+            lineup.append(dqn)
+        elif isinstance(agent_type, DQNAgent):
+            lineup.append(agent_type)
+        else:
+            lineup.append(agent['type'](env))
     rewards_per_tournament = evaluate(
         env, n_tournaments, lineup, desc=None, show_tqdm=False)
     return_dict[worker_id] = rewards_per_tournament
     env.close()
     print("eval worker exit")
 
-def eval_lineup_parallel(name, model_path, opponents, n_workers, n_tournaments_per_worker, return_dict):
+def eval_lineup_parallel(name, agents, n_workers, n_tournaments_per_worker, return_dict):
     mp.set_start_method('spawn', force=True)
     manager = mp.Manager()
     local_return = manager.dict()
@@ -94,7 +111,7 @@ def eval_lineup_parallel(name, model_path, opponents, n_workers, n_tournaments_p
     for wid in range(n_workers):
         p = mp.Process(
             target=worker_eval,
-            args=(wid, model_path, opponents,
+            args=(wid, agents,
                   n_tournaments_per_worker, local_return)
         )
         p.start()
@@ -107,34 +124,27 @@ def eval_lineup_parallel(name, model_path, opponents, n_workers, n_tournaments_p
         all_rewards.extend(local_return[wid])
     return_dict[name] = all_rewards
 
-
 def evaluate(env, n_tournaments, lineup, desc, show_tqdm=True):
     rewards_per_tournament = run_n_tournaments(
         env, n_tournaments, evaluate=True, fixed_lineup=lineup, desc=desc, show_tqdm=show_tqdm)
     return rewards_per_tournament
 
-
-def parallel_eval(model_path, fig_name, eval_dir):
-    print("[MAIN EVAL] Starting evaluation of iteration")
-    lineups = {
-        "AllInPair": [AllInPairAgent]*3,
-        "Random":    [RandomAllInFoldAgent]*3,
-        "TwoHigh":   [TwoHighAgent]*3,
-        "Suited":    [SuitedAgent]*3,
-    }
-    n_workers_per_lineup = 2
-    n_tournaments_per_worker = 1000
+"""
+lineups : dict 
+{ lineup_name : [agent_spec, agent_spec, ...], ...
+"""
+def parallel_eval(lineups, eval_name, eval_dir, n_workers_per_lineup=2, n_tournaments_per_worker=1000):
+    print(f"[PARALLEL EVAL] Starting eval {eval_name} ({len(lineups)} lineups)")
     manager = mp.Manager()
     final_results = manager.dict()
     lineup_processes = []
     # ---- start one process per lineup ----
-    for lineup_name, ops in lineups.items():
+    for lineup_name, agents in lineups.items():
         p = mp.Process(
             target=eval_lineup_parallel,
             args=(
                 lineup_name,
-                model_path,
-                ops,
+                agents,
                 n_workers_per_lineup,
                 n_tournaments_per_worker,
                 final_results
@@ -146,36 +156,71 @@ def parallel_eval(model_path, fig_name, eval_dir):
     for p in lineup_processes:
         p.join()
     # ---- plotting (single process) ----
-    env = simulation.PokerTournament()
-    dqn = DQNAgent(env, "eval", device="cpu", enable_tb=False)
-    dqn.load(model_path, map_location="cpu")
-    n_lineups = len(final_results)
-    fig, axes = plt.subplots(n_lineups, 1, figsize=(16, 5*n_lineups), sharex=False)
+    os.makedirs(eval_dir, exist_ok=True)
+    n_lineups = len(lineups)
+    fig, axes = plt.subplots(n_lineups,1,figsize=(16, 5 * n_lineups),sharex=False)
     if n_lineups == 1:
         axes = [axes]
-    for ax, (name, rewards) in zip(axes, final_results.items()):
-        lineup = [dqn] + [op(env) for op in lineups[name]]
-
+    for ax, (lineup_name, rewards) in zip(axes, final_results.items()):
+        agent_names = [a["name"] for a in lineups[lineup_name]]
         plot_results(
-            rewards,
-            lineup,
+            rewards_per_tournament=rewards,
+            agents=agent_names,
             n_tournaments=len(rewards),
-            window_size=200,
-            ax=ax
+            window_size=min(200, max(50,len(rewards)//20)),
+            ax=ax,
         )
-        ax.set_title(f"Evaluation against {name} lineup")
-    fig.suptitle("Evaluation of DQNAgent against various lineups", fontsize=16)
-    plt.tight_layout(rect=[0,0,1,0.97])
-    save_fig(fig, name=fig_name, directory=eval_dir)
-    env.close()
+        ax.set_title(f"Evaluation against {lineup_name} lineup")
+    fig.suptitle(
+        f"Evaluation {eval_name}",
+        fontsize=16,
+    )
+    plt.tight_layout(rect=[0, 0, 1, 0.97])
+    save_fig(fig, name=f"{eval_name}.png", directory=eval_dir)
 
+def eval_checkpoint_dir(checkpoint_dirs, n_workers_per_lineup = 2, n_tournaments_per_worker=1000):
+    # extract run id 
+    first_dir = next(iter(checkpoint_dirs.values()))
+    run_id = os.path.basename(first_dir)
+    eval_dir = os.path.join("eval_logs", run_id)
+    os.makedirs(eval_dir, exist_ok=True)
 
-def eval_checkpoint_dir(checkpoint_dir):
-    checkpoint_files = [f for f in os.listdir(
-        checkpoint_dir) if f.endswith('.pt')]
-    checkpoint_files.sort()
-    for ckpt in checkpoint_files:
-        model_path = os.path.join(checkpoint_dir, ckpt)
-        print(f"[EVAL] Evaluating {model_path}")
-        parallel_eval(model_path, fig_name=f"eval_{ckpt[:-3]}.png",
-                      eval_dir=f"eval_logs/{os.path.basename(checkpoint_dir)}")
+    #collect checkpoints per agent
+    ckpts_per_agent = {}
+    for agent_name, ckpt_dir in checkpoint_dirs.items():
+        ckpts = sorted(f for f in os.listdir(ckpt_dir) if f.endswith(".pt"))
+        ckpts_per_agent[agent_name] = ckpts
+
+    #evaluate common checkpoints
+    common_ckpts = set.intersection(
+        *(set(v) for v in ckpts_per_agent.values()))
+    common_ckpts = sorted(common_ckpts)
+
+    print(f"[EVAL CHECKPOINTS] Found {len(common_ckpts)} common checkpoints")
+
+    for ckpt in common_ckpts:
+        print(f"[EVAL CHECKPOINTS] Evaluating checkpoint {ckpt}")
+        agents = []
+        for agent_name, ckpt_dir in checkpoint_dirs.items():
+            agent_spec = {
+                'type': DQNAgent,
+                'model_path': os.path.join(ckpt_dir, ckpt),
+                'name': agent_name
+            }
+            agents.append(agent_spec)
+        while len(agents) < 4:
+            agents.append({
+                'type': RandomAllInFoldAgent,
+                'name': f"RandomAllInFold_{len(agents)+1}"
+            })
+        assert len(agents) == 4, "Lineup must have 4 agents"
+        lineups = {"self_play": agents} # can add more later
+        eval_name = ckpt.replace(".pt", "")
+        parallel_eval(
+            lineups=lineups,
+            eval_name=eval_name,
+            eval_dir=eval_dir,
+            n_workers_per_lineup=n_workers_per_lineup,
+            n_tournaments_per_worker=n_tournaments_per_worker
+        )
+

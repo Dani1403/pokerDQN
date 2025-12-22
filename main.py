@@ -1,27 +1,27 @@
 from eval import eval_checkpoint_dir
+from training import train_and_save
+from dqn_agent import DQNAgent
+from poker_agents import *
+import os 
+import simulation
 import cProfile, pstats, io
 
 def main():
-    # env = simulation.PokerTournament()
-    # dqn = DQNAgent(env, "dqn")
-    # if os.path.exists(f"checkpoints/{dqn}/final.pt"):
-    #     dqn.load(f"checkpoints/{dqn}/final.pt")
-    #     print(f"Loaded pretrained DQNAgent {dqn}")
-    # dqn2 = DQNAgent(env, "dqn2")
-    # if os.path.exists(f"checkpoints/{dqn2}/final.pt"):
-    #     dqn2.load(f"checkpoints/{dqn2}/final.pt")
-    #     print("Loaded pretrained DQNAgent dqn2")
-    # RANDOM_LINEUP = [dqn,RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
-    # ALL_IN_PAIR_LINEUP = [dqn, AllInPairAgent(env), AllInPairAgent(env), AllInPairAgent(env)]
-    # TWO_HIGH_LINEUP = [dqn, TwoHighAgent(env), TwoHighAgent(env), TwoHighAgent(env)]
-    # POOL = [RandomAllInFoldAgent, AllInPairAgent, TwoHighAgent, SuitedAgent]
+    #env
+    env = simulation.PokerTournament()
 
-    # train_and_evaluate(env, N_total=100_000, learn_size=20_000, eval_size=1_000,
-    #                    training_lineup=ALL_IN_PAIR_LINEUP,
-    #                    evaluation_lineups=[ALL_IN_PAIR_LINEUP])
-    # env.close()
-    eval_checkpoint_dir("checkpoints/dqn/20251217_205057_434015") #continuing of best model
-    #eval_checkpoint_dir("checkpoints/dqn/20251218_085359_791915") #best model so far at the end
+    # agents
+    dqn1 = DQNAgent(env, name="dqn1")
+    dqn2 = DQNAgent(env, name="dqn2")
+
+    training_lineup = [dqn1,dqn2, RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
+
+    N_total = 5_000
+    learn_size = 1_000
+
+    checkpoint_dirs = train_and_save(env, N_total=N_total, learn_size=learn_size, training_lineup=training_lineup, checkpoint_root="checkpoints")
+    env.close()
+    eval_checkpoint_dir(checkpoint_dirs=checkpoint_dirs, n_workers_per_lineup=4, n_tournaments_per_worker=500)
 
 
 if __name__ == "__main__":
