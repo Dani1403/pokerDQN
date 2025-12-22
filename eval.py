@@ -83,6 +83,7 @@ agents = [
 ]
 """
 def worker_eval(worker_id, agents, n_tournaments, return_dict):
+    print("[WORKER EVAL] Starting eval worker", worker_id)
     env = simulation.PokerTournament()
     lineup = []
     for agent in agents:
@@ -90,18 +91,21 @@ def worker_eval(worker_id, agents, n_tournaments, return_dict):
         if isinstance(agent_type, type) and issubclass(agent_type, DQNAgent):
             dqn = agent_type(
                 env, f"eval_worker_{worker_id}_{agent['name']}", device="cpu", enable_tb=False)
+            dqn.net.eval()
+            dqn.epsilon = 0.0
             if agent.get('model_path') is not None:
                 dqn.load(agent['model_path'], map_location="cpu")
             lineup.append(dqn)
         elif isinstance(agent_type, DQNAgent):
             lineup.append(agent_type)
+            dqn.net.eval()
         else:
             lineup.append(agent['type'](env))
     rewards_per_tournament = evaluate(
         env, n_tournaments, lineup, desc=None, show_tqdm=False)
     return_dict[worker_id] = rewards_per_tournament
     env.close()
-    print("eval worker exit")
+    print("[WORKER EVAL] Finished eval worker", worker_id)
 
 def eval_lineup_parallel(name, agents, n_workers, n_tournaments_per_worker, return_dict):
     mp.set_start_method('spawn', force=True)
@@ -124,7 +128,7 @@ def eval_lineup_parallel(name, agents, n_workers, n_tournaments_per_worker, retu
         all_rewards.extend(local_return[wid])
     return_dict[name] = all_rewards
 
-def evaluate(env, n_tournaments, lineup, desc, show_tqdm=True):
+def evaluate(env, n_tournaments, lineup, desc, show_tqdm=False):
     rewards_per_tournament = run_n_tournaments(
         env, n_tournaments, evaluate=True, fixed_lineup=lineup, desc=desc, show_tqdm=show_tqdm)
     return rewards_per_tournament
@@ -179,9 +183,11 @@ def parallel_eval(lineups, eval_name, eval_dir, n_workers_per_lineup=2, n_tourna
     save_fig(fig, name=f"{eval_name}.png", directory=eval_dir)
 
 def eval_checkpoint_dir(checkpoint_dirs, n_workers_per_lineup = 2, n_tournaments_per_worker=1000):
-    # extract run id 
+    # extract timestamp and create eval dir
     first_dir = next(iter(checkpoint_dirs.values()))
+    # we have dqn1_timestamp, extract timestamp and set eval dir to be eval_logs/timestamp
     run_id = os.path.basename(first_dir)
+    run_id = "_".join(run_id.split("_")[1:])  # remove agent name
     eval_dir = os.path.join("eval_logs", run_id)
     os.makedirs(eval_dir, exist_ok=True)
 

@@ -13,15 +13,16 @@ def main():
     # agents
     dqn1 = DQNAgent(env, name="dqn1")
     dqn2 = DQNAgent(env, name="dqn2")
+    dqn3 = DQNAgent(env, name="dqn3")
+    dqn4 = DQNAgent(env, name="dqn4")
 
-    training_lineup = [dqn1,dqn2, RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
+    SELF_PLAY_LINEUP = [dqn1, dqn2, dqn3, dqn4]
+    N_total = 1_000
+    learn_size = 200
 
-    N_total = 5_000
-    learn_size = 1_000
-
-    checkpoint_dirs = train_and_save(env, N_total=N_total, learn_size=learn_size, training_lineup=training_lineup, checkpoint_root="checkpoints")
+    checkpoint_dirs = train_and_save(env, N_total=N_total, learn_size=learn_size, training_lineup=SELF_PLAY_LINEUP, checkpoint_root="checkpoints")
     env.close()
-    eval_checkpoint_dir(checkpoint_dirs=checkpoint_dirs, n_workers_per_lineup=4, n_tournaments_per_worker=500)
+    eval_checkpoint_dir(checkpoint_dirs=checkpoint_dirs, n_workers_per_lineup=2, n_tournaments_per_worker=200)
 
 
 if __name__ == "__main__":

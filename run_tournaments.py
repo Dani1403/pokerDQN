@@ -71,7 +71,7 @@ def run_n_tournaments(env, n_tournaments, evaluate=False, fixed_lineup=None, des
         for agent in fixed_lineup:
             if hasattr(agent, "epsilon"):
                 saved_epsilons[agent] = agent.epsilon
-                agent.epsilon = 0.0
+                agent.epsilon = 0.01
 
     iterator = range(n_tournaments)
     if show_tqdm:
