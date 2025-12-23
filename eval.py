@@ -97,8 +97,9 @@ def worker_eval(worker_id, agents, n_tournaments, return_dict):
                 dqn.load(agent['model_path'], map_location="cpu")
             lineup.append(dqn)
         elif isinstance(agent_type, DQNAgent):
-            lineup.append(agent_type)
+            dqn = agent_type
             dqn.net.eval()
+            lineup.append(dqn)
         else:
             lineup.append(agent['type'](env))
     rewards_per_tournament = evaluate(

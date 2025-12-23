@@ -38,7 +38,7 @@ H_PARAMS = {
     'FREQ_TRAIN': 32,
     'EPS_START': 1.0,
     'EPS_END': 0.05,
-    'EPS_DECAY': 400_000,
+    'EPS_DECAY': 3_000,
 }
 
 class DuelingDQN(nn.Module):
@@ -243,13 +243,14 @@ class DQNAgent(nn.Module):
         # Logging
         # Log metrics
         if self.global_step % 100 == 0 and self.enable_tb:
+            #print("[DQN AGENT] logging step")
             self.writer.add_scalar("Loss/TD_Error", loss.item(), self.global_step)
             self.writer.add_scalar("Policy/Epsilon", self.epsilon, self.global_step)
 
         # Log average Q-values
         with torch.no_grad():
             avg_q = q_values.mean().item()
-        if self.enable_tb:
+        if self.global_step % 100 == 0 and self.enable_tb:
             self.writer.add_scalar("Q_values/avg_q", avg_q, self.global_step)
 
 
