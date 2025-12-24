@@ -188,7 +188,7 @@ def eval_checkpoint_dir(checkpoint_dirs, n_workers_per_lineup = 2, n_tournaments
     first_dir = next(iter(checkpoint_dirs.values()))
     # we have dqn1_timestamp, extract timestamp and set eval dir to be eval_logs/timestamp
     run_id = os.path.basename(first_dir)
-    run_id = "_".join(run_id.split("_")[1:])  # remove agent name
+    #run_id = "_".join(run_id.split("_")[1:])  # remove agent name
     eval_dir = os.path.join("eval_logs", run_id)
     os.makedirs(eval_dir, exist_ok=True)
 
@@ -217,11 +217,11 @@ def eval_checkpoint_dir(checkpoint_dirs, n_workers_per_lineup = 2, n_tournaments
             agents.append(agent_spec)
         while len(agents) < 4:
             agents.append({
-                'type': RandomAllInFoldAgent,
-                'name': f"RandomAllInFold_{len(agents)+1}"
+                'type': AllInPairAgent,
+                'name': f"AllInPair_{len(agents)+1}"
             })
         assert len(agents) == 4, "Lineup must have 4 agents"
-        lineups = {"self_play": agents} # can add more later
+        lineups = {"all_in_pair": agents} # can add more later
         eval_name = ckpt.replace(".pt", "")
         parallel_eval(
             lineups=lineups,
