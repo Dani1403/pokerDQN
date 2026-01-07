@@ -224,6 +224,10 @@ class Poker_DQN():
             self.writer.add_scalar("Policy/Epsilon", self.state_dqn.epsilon, self.global_step)
             self.writer.add_scalar("Q_values/avg_q", q_values.mean().item(), self.global_step)
 
+            self.writer.add_scalar(
+                "Loss/TD_Error_log", torch.log(loss + 1e-6).item(), self.global_step)
+            self.writer.add_scalar(
+                " mean batch rewards", rewards_t.mean().item(), self.global_step)
             # ICM diagnostics
             icm_entropy = -(icm_out * torch.log(icm_out + 1e-8)).sum(dim=1).mean()
             self.writer.add_scalar("ICM/entropy", icm_entropy.item(), self.global_step)

@@ -35,17 +35,23 @@ def main():
 
 
     # agents 
-    poker_dqn = Poker_DQN(env, name="poker_dqn")
-    RANDOM_LINEUP = [poker_dqn, RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
-    N_total = 10_000
-    learn_size = 2_000
+    poker_dqn_1 = Poker_DQN(env, name="poker_dqn_1")
+    poker_dqn_2 = Poker_DQN(env, name="poker_dqn_2")
+    poker_dqn_3 = Poker_DQN(env, name="poker_dqn_3")
+    poker_dqn_4 = Poker_DQN(env, name="poker_dqn_4")
+    SELF_PLAY_LINUEP = [poker_dqn_1, poker_dqn_2, poker_dqn_3, poker_dqn_4]
+    RANDOM_LINEUP = [poker_dqn_1, RandomAllInFoldAgent(env), RandomAllInFoldAgent(env), RandomAllInFoldAgent(env)]
+    ALL_IN_PAIR_LINEUP = [poker_dqn_1, AllInPairAgent(
+        env), AllInPairAgent(env), AllInPairAgent(env)]
+    N_total = 50_000
+    learn_size = 10_000
     checkpoint_dir = train_and_save(env, N_total=N_total, learn_size=learn_size,
-                                    training_lineup=RANDOM_LINEUP, checkpoint_root="checkpoints")
+                                    training_lineup=SELF_PLAY_LINUEP, checkpoint_root="checkpoints")
     env.close()
     for agent_name, ckpt_dir in checkpoint_dir.items():
         dir = {agent_name: ckpt_dir}
         eval_checkpoint_dir(checkpoint_dirs=dir,
-                            n_workers_per_lineup=2, n_tournaments_per_worker=500)
+                            n_workers_per_lineup=2, n_tournaments_per_worker=1_000)
 
 if __name__ == "__main__":
     #pr = cProfile.Profile()
