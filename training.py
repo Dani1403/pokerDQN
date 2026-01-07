@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 import matplotlib.pyplot as plt
 import numpy as np
+from poker_dqn import Poker_DQN
 
 """ must provide a list of agents forming the base of the training pool """
 def training_table(env, agents, pool):

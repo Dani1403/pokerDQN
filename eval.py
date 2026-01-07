@@ -3,11 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 import multiprocessing as mp
+from clubs import poker
 import simulation
 from dqn_agent import DQNAgent
 from poker_agents import *
 from run_tournaments import run_n_tournaments
 import os
+from poker_dqn import Poker_DQN
 
 def moving_average(x, window_size):
     return np.convolve(x, np.ones(window_size)/window_size, mode='valid')
@@ -88,7 +90,19 @@ def worker_eval(worker_id, agents, n_tournaments, return_dict):
     lineup = []
     for agent in agents:
         agent_type = agent['type']
-        if isinstance(agent_type, type) and issubclass(agent_type, DQNAgent):
+        if isinstance(agent_type, type) and agent_type.__name__=="Poker_DQN":
+            poker_dqn = agent_type(
+                env, name=f"eval_worker_{worker_id}_{agent['name']}", device="cpu", enable_tb=False)
+            poker_dqn.state_dqn.net.eval()
+            poker_dqn.state_dqn.epsilon = 0.0
+            if agent.get('model_path') is not None:
+                poker_dqn.load(agent['model_path'], map_location="cpu")
+            lineup.append(poker_dqn)
+        elif agent_type.__class__.__name__ == "Poker_DQN":
+            poker_dqn = agent_type
+            poker_dqn.state_dqn.net.eval()
+            lineup.append(poker_dqn)
+        elif isinstance(agent_type, type) and issubclass(agent_type, DQNAgent):
             dqn = agent_type(
                 env, f"eval_worker_{worker_id}_{agent['name']}", device="cpu", enable_tb=False)
             dqn.net.eval()
@@ -100,8 +114,14 @@ def worker_eval(worker_id, agents, n_tournaments, return_dict):
             dqn = agent_type
             dqn.net.eval()
             lineup.append(dqn)
+
         else:
-            lineup.append(agent['type'](env))
+            try:
+                lineup.append(agent['type'](env))
+            except TypeError as e:
+                raise RuntimeError(
+                    f"Error initializing agent {agent['name']}: {e}") from e
+
     rewards_per_tournament = evaluate(
         env, n_tournaments, lineup, desc=None, show_tqdm=False)
     return_dict[worker_id] = rewards_per_tournament
@@ -210,18 +230,28 @@ def eval_checkpoint_dir(checkpoint_dirs, n_workers_per_lineup = 2, n_tournaments
         agents = []
         for agent_name, ckpt_dir in checkpoint_dirs.items():
             agent_spec = {
-                'type': DQNAgent,
+                'type': Poker_DQN,
                 'model_path': os.path.join(ckpt_dir, ckpt),
                 'name': agent_name
             }
             agents.append(agent_spec)
-        while len(agents) < 4:
-            agents.append({
+        all_in_pair_lineup = agents.copy()
+        random_lineup = agents.copy()
+        while len(all_in_pair_lineup) < 4:
+            all_in_pair_lineup.append({
                 'type': AllInPairAgent,
                 'name': f"AllInPair_{len(agents)+1}"
             })
-        assert len(agents) == 4, "Lineup must have 4 agents"
-        lineups = {"all_in_pair": agents} # can add more later
+            random_lineup.append({
+                'type': RandomAllInFoldAgent,
+                'name': f"Random_{len(random_lineup)+1}"
+            })
+        assert len(all_in_pair_lineup) == 4, "Lineup must have 4 agents"
+        assert len(random_lineup) == 4, "Lineup must have 4 agents"
+
+        lineups = {"all_in_pair": all_in_pair_lineup, 
+                   "random": random_lineup,
+                   } 
         eval_name = ckpt.replace(".pt", "")
         parallel_eval(
             lineups=lineups,

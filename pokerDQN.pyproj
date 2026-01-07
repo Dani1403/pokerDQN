@@ -46,6 +46,7 @@
     <Compile Include="eval.py" />
     <Compile Include="main.py" />
     <Compile Include="poker_agents.py" />
+    <Compile Include="poker_dqn.py" />
     <Compile Include="qagent.py" />
     <Compile Include="simconfig.py" />
     <Compile Include="simulation.py" />

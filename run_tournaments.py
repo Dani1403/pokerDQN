@@ -1,7 +1,9 @@
 from tqdm import tqdm
 import numpy as np
+from clubs import poker
 from qagent import QAgent
 from dqn_agent import DQNAgent
+from poker_dqn import Poker_DQN
 
 
 def run_tournament(env, agents, evaluate=False, collect_transitions=False):
@@ -18,7 +20,7 @@ def run_tournament(env, agents, evaluate=False, collect_transitions=False):
         curr_agent = agents[player_idx]
 
         #acton selection
-        if isinstance(curr_agent, (QAgent, DQNAgent)):
+        if isinstance(curr_agent, (QAgent, DQNAgent, Poker_DQN)):
             state = curr_agent._preprocess_state(obs)
             action = curr_agent.act(state)
         else:
@@ -28,7 +30,7 @@ def run_tournament(env, agents, evaluate=False, collect_transitions=False):
 
         # Only compute next state for SAME PLAYER
         next_state = None
-        if next_obs is not None and isinstance(curr_agent, (QAgent, DQNAgent)):
+        if next_obs is not None and isinstance(curr_agent, (QAgent, DQNAgent, Poker_DQN)):
             next_state = curr_agent._preprocess_state(next_obs)
 
         # reward shaping
@@ -41,7 +43,7 @@ def run_tournament(env, agents, evaluate=False, collect_transitions=False):
             reward = [int(np.clip(r // bb, -cap, cap)) for r in stack_diff]
 
         # Training step or collect transition
-        if isinstance(curr_agent, DQNAgent):
+        if isinstance(curr_agent, (DQNAgent, Poker_DQN)):
             if collect_transitions:
                 transitions.append((state, action, reward[player_idx], next_state, done))
 

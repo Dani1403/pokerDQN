@@ -63,25 +63,25 @@ class DuelingDQN(nn.Module):
 
 
 class DQNAgent(nn.Module):
-    def __init__(self, env, name, device=(torch.device("cuda" if torch.cuda.is_available() else "cpu")), enable_tb=True):
+    def __init__(self, env, name, hparams=H_PARAMS, device=(torch.device("cuda" if torch.cuda.is_available() else "cpu")), enable_tb=True):
         super().__init__()
 
         self.env = env
         self.name = name
 
-        self.n_actions = H_PARAMS['N_ACTIONS']
-        self.state_dim = H_PARAMS['STATE_DIM']
-        self.hidden_dim = H_PARAMS['HIDDEN_DIM']
-        self.gamma = H_PARAMS['GAMMA']
-        self.lr = H_PARAMS['LR']
-        self.batch_size = H_PARAMS['BATCH_SIZE']
-        self.buffer_size = H_PARAMS['BUFFER_SIZE']
-        self.target_sync = H_PARAMS['TARGET_SYNC']
-        self.epsilon_start = H_PARAMS['EPS_START']
-        self.epsilon_end = H_PARAMS['EPS_END']
-        self.epsilon_decay = H_PARAMS['EPS_DECAY']
+        self.n_actions = hparams['N_ACTIONS']
+        self.state_dim = hparams['STATE_DIM']
+        self.hidden_dim = hparams['HIDDEN_DIM']
+        self.gamma = hparams['GAMMA']
+        self.lr = hparams['LR']
+        self.batch_size = hparams['BATCH_SIZE']
+        self.buffer_size = hparams['BUFFER_SIZE']
+        self.target_sync = hparams['TARGET_SYNC']
+        self.epsilon_start = hparams['EPS_START']
+        self.epsilon_end = hparams['EPS_END']
+        self.epsilon_decay = hparams['EPS_DECAY']
         self.epsilon = self.epsilon_start
-        self.freq_train = H_PARAMS['FREQ_TRAIN']
+        self.freq_train = hparams['FREQ_TRAIN']
 
         self.device = device
         self.enable_tb = enable_tb
@@ -260,11 +260,13 @@ class DQNAgent(nn.Module):
             self.target_net.load_state_dict(self.net.state_dict())
 
         # Decay epsilon
+        self._update_epsilon()
+
+    def _update_epsilon(self):
         if self.epsilon > self.epsilon_end:
-            self.epsilon -= (self.epsilon_start - self.epsilon_end) / self.epsilon_decay
+            self.epsilon -= (self.epsilon_start -
+                             self.epsilon_end) / self.epsilon_decay
             self.epsilon = max(self.epsilon, self.epsilon_end)
-
-
 
     def save(self, path):
         os.makedirs(os.path.dirname(path), exist_ok=True)
