@@ -247,10 +247,10 @@ def eval_checkpoint_dir(checkpoint_dirs, n_workers_per_lineup = 2, n_tournaments
                 'name': f"Random_{len(random_lineup)+1}"
             })
         assert len(all_in_pair_lineup) == 4, "Lineup must have 4 agents"
-        assert len(random_lineup) == 4, "Lineup must have 4 agents"
-
-        lineups = {"all_in_pair": all_in_pair_lineup, 
-                   "random": random_lineup,
+        assert len(random_lineup) == 4, "Lineup must have 4 agents" 
+        assert len(agents) == 4, "Lineup must have 4 agents"
+        lineups = {
+            "self_play": agents,
                    } 
         eval_name = ckpt.replace(".pt", "")
         parallel_eval(
