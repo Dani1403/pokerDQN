@@ -43,6 +43,10 @@ class ICMNet(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+    def load(self, path, map_location=None):
+        checkpoint = torch.load(path, map_location=map_location)
+        self.load_state_dict(checkpoint["icm_net"])
+
 class Poker_DQN():
     def __init__(self, 
                  env, 
