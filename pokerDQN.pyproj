@@ -5,7 +5,7 @@
     <ProjectGuid>0119084b-2d1d-4809-a7cc-c594396afbb8</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>icm.py</StartupFile>
+    <StartupFile>visualize.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -53,6 +53,7 @@
     <Compile Include="simulation.py" />
     <Compile Include="run_tournaments.py" />
     <Compile Include="training.py" />
+    <Compile Include="visualize.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="CondaEnv|CondaEnv|poker-pypy" />
