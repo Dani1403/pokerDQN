@@ -4,7 +4,6 @@ from dqn_agent import DQNAgent
 from poker_agents import *
 import os 
 import simulation
-import cProfile, pstats, io
 from poker_dqn import Poker_DQN
 
 def main():
