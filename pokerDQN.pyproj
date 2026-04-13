@@ -5,7 +5,7 @@
     <ProjectGuid>0119084b-2d1d-4809-a7cc-c594396afbb8</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>visualize.py</StartupFile>
+    <StartupFile>main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
