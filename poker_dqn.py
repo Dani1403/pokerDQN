@@ -61,7 +61,7 @@ class Poker_DQN():
         self.device = device
         self.enable_tb = enable_tb
         self.prize_pool = np.array(env._prize_pool, dtype=np.float32)
-        s = float(np.sum(self.prize_pool))
+        s = float(np.sum(np.abs(self.prize_pool)))
         if s > 0:
             self.prize_pool /= s
 
@@ -97,7 +97,7 @@ class Poker_DQN():
         self.gamma = self.state_dqn.gamma
         self.batch_size = self.state_dqn.batch_size
         self.buffer = deque(maxlen=self.state_dqn.buffer_size)
-        # state_dqn buffer IS NOT USED — we use our own buffer for the composite states
+        # state_dqn buffer IS NOT USED - we use our own buffer for the composite states
         self.freq_train = self.state_dqn.freq_train
         self.target_sync = self.state_dqn.target_sync
 

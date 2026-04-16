@@ -119,19 +119,6 @@ class DQNAgent(nn.Module):
         stacks_bb = tuple(min(s // self.env.table.dealer.blinds[1], self.env.max_stack_bb - 1) for s in obs['stacks'])
 
         stack = stacks_bb[obs['action']]
-
-        shortest = 1  # assume is shortest
-
-        other_stacks = [stacks_bb[i] for i in range(
-            len(stacks_bb)) if i != obs['action'] and obs['active'][i]]
-        if other_stacks:
-            shortest_other = min(other_stacks)
-            if shortest_other < stack:
-                shortest = 0
-
-        player_idx = (obs['action'],)
-
-
         stack_norm = stack / (self.env.max_stack_bb - 1)
 
         shortest = 1
@@ -139,32 +126,20 @@ class DQNAgent(nn.Module):
             stacks_bb[i] for i in range(len(stacks_bb))
             if i != obs["action"] and obs["active"][i]
         ]
-
-        other_stacks_norm = [s / (self.env.max_stack_bb - 1)
-                             for s in other_stacks]
-
         if other_stacks:
             if min(other_stacks) < stack:
                 shortest = 0
-
         shortest_norm = float(shortest)
 
         position_norm = obs["action"] / (self.env.num_players - 1)
-
         active_norm = sum(obs['active']) / self.env.num_players
 
         call_ratio = obs['call'] / (obs['pot'] + 1e-6)
         call_norm = np.clip(call_ratio, 0.0, 5.0) / 5.0
 
         state = np.array([
-            low_norm,
-            high_norm,
-            suited_norm,
-            stack_norm,
-            active_norm,
-            shortest_norm,
-            position_norm,
-            call_norm
+            low_norm, high_norm, suited_norm, stack_norm,
+            active_norm, shortest_norm, position_norm, call_norm
         ], dtype=np.float32)
 
         return state

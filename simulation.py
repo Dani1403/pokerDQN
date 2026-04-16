@@ -120,7 +120,6 @@ class PokerTournament(gym.Env):
     """
     def step(self, action: int) -> Tuple[Any, Union[float, list[float]], bool, bool, dict]:
 
-        
         obs, rewards, done, _ = self.table.step(action)
         # done is a list of booleans indicating if each player is done
         done = all(done)
@@ -132,7 +131,7 @@ class PokerTournament(gym.Env):
             self._set_blinds()
 
         if done:
-            # update busted array 
+            # update busted array
             busted = [i for i in range(self.num_players) \
                 if self.table.dealer.stacks[i] == 0 and self._bust_order[i] is None]
 
@@ -144,6 +143,8 @@ class PokerTournament(gym.Env):
         # the game is over when all but one player has no chips left at the end of the hand
         game_over = done and (self.table.dealer.stacks.count(0) == self.num_players - 1)
 
+        info = {}
+
         if game_over:
             #assign prize pool based on bust order
             winner = self.table.dealer.stacks.index(
@@ -151,13 +152,18 @@ class PokerTournament(gym.Env):
             if self._bust_order[winner] is None:
                 self._bust_order[winner] = self.elimination_counter
             rewards = self._assign_rewards(self._bust_order, self._prize_pool)
-            return obs, rewards, done, _, _
+            info['hand_done'] = True
+            info['post_payout_stacks'] = list(self.table.dealer.stacks)
+            return obs, rewards, True, False, info
 
         elif done: #the game is not over
-            # reset for next hand
-            self.reset(options = {"reset_button": False, "reset_stacks": False})
+            # capture post-payout stacks BEFORE reset
+            info['hand_done'] = True
+            info['post_payout_stacks'] = list(self.table.dealer.stacks)
+            # use fresh obs from reset
+            obs, _ = self.reset(options={"reset_button": False, "reset_stacks": False})
 
-        return obs, [0] * self.table.dealer.num_players, game_over, _, _
+        return obs, [0] * self.table.dealer.num_players, game_over, False, info
 
     """
     Set the blinds for the current level based on the blind schedule.
@@ -168,6 +174,8 @@ class PokerTournament(gym.Env):
         bb = sb * 2
         self.table.dealer.blinds = [sb, bb] + \
             [0] * (self.num_players - 2)
+        self.table.dealer.big_blind = bb
+        self.max_stack_bb = int(self.max_stack // bb) + 1
 
 
     def _get_num_active_players(self):

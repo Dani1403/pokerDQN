@@ -593,7 +593,7 @@ class Dealer:
         # roll list to action
         bets = bets[-self.action :] + bets[: -self.action]  # noqa: E203
         bets = [
-            (stack > 0) * active * bet
+            min(stack, (stack > 0) * active * bet)
             for stack, active, bet in zip(self.stacks, self.active, bets)
         ]
         if street_commits:
