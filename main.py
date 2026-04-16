@@ -44,7 +44,7 @@ def main():
         env), AllInPairAgent(env), AllInPairAgent(env)]
     N_total = 10_000_000
     learn_size = 100_000
-    checkpoint_dirs = train_and_save(env, N_total=N_total, learn_size=learn_size,training_lineup=SELF_PLAY_LINEUP, checkpoint_root="checkpoints")
+    checkpoint_dirs = train_and_save(env, N_total=N_total, learn_size=learn_size,training_lineup=RANDOM_LINEUP, checkpoint_root="checkpoints")
 
     # checkpoint_dirs = {
     #     "poker_dqn_1": "checkpoints/poker_dqn_1_20260107_173558_609746",
@@ -55,7 +55,7 @@ def main():
     env.close()
     
     eval_checkpoint_dir(checkpoint_dirs=checkpoint_dirs,
-                            n_workers_per_lineup=10, n_tournaments_per_worker=100_000)
+                            n_workers_per_lineup=5, n_tournaments_per_worker=10_000)
 
 if __name__ == "__main__":
     #pr = cProfile.Profile()

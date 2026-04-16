@@ -120,18 +120,6 @@ class DQNAgent(nn.Module):
 
         stack = stacks_bb[obs['action']]
 
-        shortest = 1  # assume is shortest
-
-        other_stacks = [stacks_bb[i] for i in range(
-            len(stacks_bb)) if i != obs['action'] and obs['active'][i]]
-        if other_stacks:
-            shortest_other = min(other_stacks)
-            if shortest_other < stack:
-                shortest = 0
-
-        player_idx = (obs['action'],)
-
-
         stack_norm = stack / (self.env.max_stack_bb - 1)
 
         shortest = 1
@@ -139,9 +127,6 @@ class DQNAgent(nn.Module):
             stacks_bb[i] for i in range(len(stacks_bb))
             if i != obs["action"] and obs["active"][i]
         ]
-
-        other_stacks_norm = [s / (self.env.max_stack_bb - 1)
-                             for s in other_stacks]
 
         if other_stacks:
             if min(other_stacks) < stack:

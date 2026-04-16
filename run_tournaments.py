@@ -11,53 +11,66 @@ def run_tournament(env, agents, evaluate=False, collect_transitions=False):
     transitions = []
 
     obs, _ = env.reset(options={"reset_button": True, "reset_stacks": True})
-    prev_stacks = obs['stacks'].copy()
+    pre_hand_stacks = list(obs['stacks'])
     done = False
+
+    # Per-player pending transitions for this hand
+    pending = {}  # player_idx -> (state, action)
 
     while not done:
 
         player_idx = env.table.dealer.action
         curr_agent = agents[player_idx]
 
-        #acton selection
+        # action selection
         if isinstance(curr_agent, (QAgent, DQNAgent, Poker_DQN)):
             state = curr_agent._preprocess_state(obs)
             action = curr_agent.act(state)
         else:
             action = curr_agent.act(obs)
 
-        next_obs, reward, done, _, _ = env.step(action)
+        # store pending transition for this player
+        if isinstance(curr_agent, (DQNAgent, Poker_DQN)):
+            pending[player_idx] = (state, action)
 
-        # Only compute next state for SAME PLAYER
-        next_state = None
-        if next_obs is not None and isinstance(curr_agent, (QAgent, DQNAgent, Poker_DQN)):
-            next_state = curr_agent._preprocess_state(next_obs)
+        next_obs, reward, done, _, info = env.step(action)
+        hand_done = info.get('hand_done', False)
 
-        # reward shaping
-        new_stacks = next_obs['stacks'].copy()
-        stack_diff = [new_stacks[i] - prev_stacks[i] for i in range(env.num_players)]
-        if not done:
-            reward = stack_diff
+        # finalize transitions when a hand ends
+        if hand_done or done:
             bb = env.table.dealer.blinds[1]
             cap = env.max_stack_bb - 1
-            reward = [int(np.clip(r // bb, -cap, cap)) for r in stack_diff]
 
-        # Training step or collect transition
-        if isinstance(curr_agent, (DQNAgent, Poker_DQN)):
-            if collect_transitions:
-                transitions.append((state, action, reward[player_idx], next_state, done))
+            if done:
+                # tournament over: use prize pool rewards
+                hand_rewards = reward
+            else:
+                # hand over: net chip change over the hand
+                post_payout = info['post_payout_stacks']
+                hand_rewards = [
+                    int(np.clip((post_payout[i] - pre_hand_stacks[i]) // bb, -cap, cap))
+                    for i in range(env.num_players)
+                ]
 
-            elif not evaluate:
-                curr_agent.update_parameters(
-                    state,
-                    action,
-                    reward[player_idx],
-                    next_state,
-                    done
-                )
+            # finalize all pending transitions with done=True
+            for pidx, (pstate, paction) in pending.items():
+                pagent = agents[pidx]
+                if isinstance(pagent, (DQNAgent, Poker_DQN)):
+                    if collect_transitions:
+                        transitions.append((pstate, paction, hand_rewards[pidx], pstate, True))
+                    elif not evaluate:
+                        pagent.update_parameters(
+                            pstate, paction, hand_rewards[pidx], pstate, True
+                        )
 
-        prev_stacks = new_stacks
+            pending.clear()
+
+            if not done:
+                # new hand: update baseline stacks (post-blind from fresh obs)
+                pre_hand_stacks = list(next_obs['stacks'])
+
         obs = next_obs
+
     if collect_transitions:
         return transitions
     else:
