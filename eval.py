@@ -18,6 +18,14 @@ def cumulative_average(x):
     x = np.array(x)
     return np.cumsum(x) / np.arange(1, len(x) + 1)
 
+def ema(x, alpha=0.0005):
+    x = np.array(x)
+    out = np.zeros_like(x)
+    out[0] = x[0]
+    for i in range(1, len(x)):
+        out[i] = alpha * x[i] + (1 - alpha) * out[i-1]
+    return out
+
 def placements(rewards_per_tournament):
     arr = np.array(rewards_per_tournament)
     ranks = np.argsort(np.argsort(-arr, axis=1), axis=1) + 1
@@ -62,7 +70,7 @@ def plot_results(rewards_per_tournament, agents, n_tournaments, window_size, ax)
 
     ax.set_title("Rewards per Tournament in Poker Simulation")
     ax.set_xlabel("Tournament")
-    ax.set_ylabel("Rewards")
+    ax.set_ylabel("Rewards (Moving average)")
     x_ticks_spacing = max(1, n_tournaments // 10)
     ax.set_xticks(ticks = range(0,n_tournaments,x_ticks_spacing))
 
@@ -217,26 +225,27 @@ def parallel_eval(lineups, eval_name, eval_dir, n_workers_per_lineup=2, n_tourna
     for p in lineup_processes:
         p.join()
     # ---- plotting (single process) ----
-    # os.makedirs(eval_dir, exist_ok=True)
-    # n_lineups = len(lineups)
-    # fig, axes = plt.subplots(n_lineups,1,figsize=(16, 5 * n_lineups),sharex=False)
-    # if n_lineups == 1:
-    #     axes = [axes]
-    # for ax, (lineup_name, rewards) in zip(axes, final_results.items()):
-    #     agent_names = [a["name"] for a in lineups[lineup_name]]
-    #     plot_cumulative_results(
-    #         rewards_per_tournament=rewards,
-    #         agents=agent_names,
-    #         n_tournaments=len(rewards),
-    #         ax=ax,
-    #     )
-    #     ax.set_title(f"Evaluation against {lineup_name} lineup")
-    # fig.suptitle(
-    #     f"Evaluation {eval_name}",
-    #     fontsize=16,
-    # )
-    # plt.tight_layout(rect=[0, 0, 1, 0.97])
-    # save_fig(fig, name=f"{eval_name}.png", directory=eval_dir)
+    os.makedirs(eval_dir, exist_ok=True)
+    n_lineups = len(lineups)
+    fig, axes = plt.subplots(n_lineups,1,figsize=(16, 5 * n_lineups),sharex=False)
+    if n_lineups == 1:
+        axes = [axes]
+    for ax, (lineup_name, rewards) in zip(axes, final_results.items()):
+        agent_names = [a["name"] for a in lineups[lineup_name]]
+        plot_results(
+            rewards_per_tournament=rewards,
+            agents=agent_names,
+            n_tournaments=len(rewards),
+            window_size = max(500, len(rewards) // 50),
+            ax=ax,
+        )
+        ax.set_title(f"Evaluation against {lineup_name} lineup")
+    fig.suptitle(
+        f"Evaluation {eval_name}",
+        fontsize=16,
+    )
+    plt.tight_layout(rect=[0, 0, 1, 0.97])
+    save_fig(fig, name=f"{eval_name}.png", directory=eval_dir)
 
     return dict(final_results)
 
@@ -287,9 +296,12 @@ def eval_checkpoint_dir(checkpoint_dirs,
 
         lineups = {"self_play": agents}
 
+        eval_name = ckpt.replace(".pt", "self_play")
+        eval_dir = eval_dir + "_self_play"
+
         results = parallel_eval(
             lineups=lineups,
-            eval_name=ckpt,
+            eval_name=eval_name,
             eval_dir=eval_dir,
             n_workers_per_lineup=n_workers_per_lineup,
             n_tournaments_per_worker=n_tournaments_per_worker
@@ -316,10 +328,14 @@ def eval_checkpoint_dir(checkpoint_dirs,
     x_values = [extract_step(c) / 1e6 for c in common_ckpts]
     for agent_name in agent_names:
         values = results_over_time[agent_name]
-        cum_avg = cumulative_average(values)
+        #cum_avg = cumulative_average(values)
 
+        smoothed = ema(values, alpha=0.15)
 
-        ax.plot(x_values, cum_avg, label=f"{agent_name} ({cum_avg[-1]:.3f})", linewidth=2)
+        ax.plot(x_values, 
+                smoothed, 
+                label=f"{agent_name} ({smoothed[-1]:.3f})", 
+                linewidth=2)
 
     ax.set_title("Cumulative Performance over Training")
     ax.set_xlabel("Training Steps (millions)")

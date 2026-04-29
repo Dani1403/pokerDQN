@@ -55,7 +55,7 @@ def main():
     env.close()
     
     eval_checkpoint_dir(checkpoint_dirs=checkpoint_dirs,
-                            n_workers_per_lineup=5, n_tournaments_per_worker=2_000)
+                            n_workers_per_lineup=10, n_tournaments_per_worker=10_000)
 
 if __name__ == "__main__":  
     #pr = cProfile.Profile()
