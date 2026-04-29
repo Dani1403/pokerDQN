@@ -217,27 +217,28 @@ def parallel_eval(lineups, eval_name, eval_dir, n_workers_per_lineup=2, n_tourna
     for p in lineup_processes:
         p.join()
     # ---- plotting (single process) ----
-    os.makedirs(eval_dir, exist_ok=True)
-    n_lineups = len(lineups)
-    fig, axes = plt.subplots(n_lineups,1,figsize=(16, 5 * n_lineups),sharex=False)
-    if n_lineups == 1:
-        axes = [axes]
-    for ax, (lineup_name, rewards) in zip(axes, final_results.items()):
-        agent_names = [a["name"] for a in lineups[lineup_name]]
-        plot_cumulative_results(
-            rewards_per_tournament=rewards,
-            agents=agent_names,
-            n_tournaments=len(rewards),
-            window_size=min(200, max(50,len(rewards)//20)),
-            ax=ax,
-        )
-        ax.set_title(f"Evaluation against {lineup_name} lineup")
-    fig.suptitle(
-        f"Evaluation {eval_name}",
-        fontsize=16,
-    )
-    plt.tight_layout(rect=[0, 0, 1, 0.97])
-    save_fig(fig, name=f"{eval_name}.png", directory=eval_dir)
+    # os.makedirs(eval_dir, exist_ok=True)
+    # n_lineups = len(lineups)
+    # fig, axes = plt.subplots(n_lineups,1,figsize=(16, 5 * n_lineups),sharex=False)
+    # if n_lineups == 1:
+    #     axes = [axes]
+    # for ax, (lineup_name, rewards) in zip(axes, final_results.items()):
+    #     agent_names = [a["name"] for a in lineups[lineup_name]]
+    #     plot_cumulative_results(
+    #         rewards_per_tournament=rewards,
+    #         agents=agent_names,
+    #         n_tournaments=len(rewards),
+    #         window_size=min(200, max(50,len(rewards)//20)),
+    #         ax=ax,
+    #     )
+    #     ax.set_title(f"Evaluation against {lineup_name} lineup")
+    # fig.suptitle(
+    #     f"Evaluation {eval_name}",
+    #     fontsize=16,
+    # )
+    # plt.tight_layout(rect=[0, 0, 1, 0.97])
+    # save_fig(fig, name=f"{eval_name}.png", directory=eval_dir)
+
     return dict(final_results)
 
 def eval_checkpoint_dir(checkpoint_dirs, n_workers_per_lineup = 2, n_tournaments_per_worker=1000):
@@ -260,14 +261,16 @@ def eval_checkpoint_dir(checkpoint_dirs, n_workers_per_lineup = 2, n_tournaments
         *(set(v) for v in ckpts_per_agent.values()))
     common_ckpts = sorted(common_ckpts)
 
-    common_ckpts = common_ckpts[::5]
+    #common_ckpts = common_ckpts[::5]
 
     print(f"[EVAL CHECKPOINTS] Found {len(common_ckpts)} common checkpoints")
+
+    results_over_time = {agent_name: [] for agent_name in checkpoint_dirs.keys()}
+
 
     for ckpt in common_ckpts:
         print(f"[EVAL CHECKPOINTS] Evaluating checkpoint {ckpt}")
         agents = []
-        results_over_time = {agent_name: [] for agent_name in checkpoint_dirs.keys()}
         for agent_name, ckpt_dir in checkpoint_dirs.items():
             agent_spec = {
                 'type': Poker_DQN,
@@ -310,16 +313,18 @@ def eval_checkpoint_dir(checkpoint_dirs, n_workers_per_lineup = 2, n_tournaments
         for i, agent_name in enumerate(checkpoint_dirs.keys()):
             results_over_time[agent_name].append(avg_rewards[i])
 
-        fig, ax = plt.subplots(figsize=(10,6))
+        # ---- FINAL PLOT (cumulative over checkpoints) ----
+        fig, ax = plt.subplots(figsize=(10, 6))
 
         for agent_name, values in results_over_time.items():
-            ax.plot(values, label=agent_name, linewidth=2)
+            cum_avg = cumulative_average(values)
+            ax.plot(cum_avg, label=agent_name, linewidth=2)
 
-        ax.set_title("Training Progression")
+        ax.set_title("Cumulative Performance over Training 5x500 tournaments by cp")
         ax.set_xlabel("Checkpoint")
-        ax.set_ylabel("Average Reward")
+        ax.set_ylabel("Cumulative Average Reward")
         ax.legend()
         ax.grid(True)
 
-        save_fig(fig, name="training_progression.png", directory=eval_dir)
+        save_fig(fig, name="training_progression_cumulative_5x500.png", directory=eval_dir)
 
