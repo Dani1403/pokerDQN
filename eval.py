@@ -14,6 +14,10 @@ from poker_dqn import Poker_DQN
 def moving_average(x, window_size):
     return np.convolve(x, np.ones(window_size)/window_size, mode='valid')
 
+def cumulative_average(x):
+    x = np.array(x)
+    return np.cumsum(x) / np.arange(1, len(x) + 1)
+
 def placements(rewards_per_tournament):
     arr = np.array(rewards_per_tournament)
     ranks = np.argsort(np.argsort(-arr, axis=1), axis=1) + 1
@@ -72,6 +76,38 @@ def plot_results(rewards_per_tournament, agents, n_tournaments, window_size, ax)
                for i in range(n_agents)]),
     ax.grid(True, which='both', axis='y', linestyle='--', alpha=0.4)
 
+
+def plot_cumulative_results(rewards_per_tournament, agents, n_tournaments, ax):
+    reward_per_agent = np.array(rewards_per_tournament).T
+    placement_summary = placements(rewards_per_tournament)
+
+    final_avg_rewards = []
+
+    for i, rewards in enumerate(reward_per_agent):
+        cum_avg = cumulative_average(rewards)
+        x_values = range(len(cum_avg))
+
+        final_avg_rewards.append(cum_avg[-1])
+
+        ax.plot(x_values, cum_avg, linewidth=2, label=f"Player {i + 1}")
+
+    ax.set_title("Cumulative Average Reward per Tournament")
+    ax.set_xlabel("Tournament")
+    ax.set_ylabel("Cumulative Average Reward")
+
+    x_ticks_spacing = max(1, n_tournaments // 10)
+    ax.set_xticks(range(0, n_tournaments, x_ticks_spacing))
+
+    n_agents = min(len(agents), len(final_avg_rewards), len(placement_summary))
+
+    ax.legend([
+        f"Player {i + 1} : {agents[i]}\n"
+        f"Final avg reward: {final_avg_rewards[i]:.2f}\n"
+        f"Placements: {placement_summary[i]}"
+        for i in range(n_agents)
+    ])
+
+    ax.grid(True, which='both', axis='y', linestyle='--', alpha=0.4)
 
 """
 Multiprocessing evaluation setup
@@ -188,7 +224,7 @@ def parallel_eval(lineups, eval_name, eval_dir, n_workers_per_lineup=2, n_tourna
         axes = [axes]
     for ax, (lineup_name, rewards) in zip(axes, final_results.items()):
         agent_names = [a["name"] for a in lineups[lineup_name]]
-        plot_results(
+        plot_cumulative_results(
             rewards_per_tournament=rewards,
             agents=agent_names,
             n_tournaments=len(rewards),
@@ -202,6 +238,7 @@ def parallel_eval(lineups, eval_name, eval_dir, n_workers_per_lineup=2, n_tourna
     )
     plt.tight_layout(rect=[0, 0, 1, 0.97])
     save_fig(fig, name=f"{eval_name}.png", directory=eval_dir)
+    return dict(final_results)
 
 def eval_checkpoint_dir(checkpoint_dirs, n_workers_per_lineup = 2, n_tournaments_per_worker=1000):
     # extract timestamp and create eval dir
@@ -223,11 +260,14 @@ def eval_checkpoint_dir(checkpoint_dirs, n_workers_per_lineup = 2, n_tournaments
         *(set(v) for v in ckpts_per_agent.values()))
     common_ckpts = sorted(common_ckpts)
 
+    common_ckpts = common_ckpts[::5]
+
     print(f"[EVAL CHECKPOINTS] Found {len(common_ckpts)} common checkpoints")
 
     for ckpt in common_ckpts:
         print(f"[EVAL CHECKPOINTS] Evaluating checkpoint {ckpt}")
         agents = []
+        results_over_time = {agent_name: [] for agent_name in checkpoint_dirs.keys()}
         for agent_name, ckpt_dir in checkpoint_dirs.items():
             agent_spec = {
                 'type': Poker_DQN,
@@ -250,14 +290,36 @@ def eval_checkpoint_dir(checkpoint_dirs, n_workers_per_lineup = 2, n_tournaments
         assert len(random_lineup) == 4, "Lineup must have 4 agents" 
         #assert len(agents) == 4, "Lineup must have 4 agents"
         lineups = {
-            "all_in_pair": all_in_pair_lineup
+            "self_play": agents
                    } 
-        eval_name = ckpt.replace(".pt", "_all_in_pair")
-        parallel_eval(
+        eval_name = ckpt.replace(".pt", "self_play")
+        results = parallel_eval(
             lineups=lineups,
             eval_name=eval_name,
             eval_dir=eval_dir,
             n_workers_per_lineup=n_workers_per_lineup,
             n_tournaments_per_worker=n_tournaments_per_worker
         )
+
+
+        rewards = list(results.values())[0]  # since 1 lineup
+        reward_per_agent = np.array(rewards).T
+
+        avg_rewards = reward_per_agent.mean(axis=1)
+
+        for i, agent_name in enumerate(checkpoint_dirs.keys()):
+            results_over_time[agent_name].append(avg_rewards[i])
+
+        fig, ax = plt.subplots(figsize=(10,6))
+
+        for agent_name, values in results_over_time.items():
+            ax.plot(values, label=agent_name, linewidth=2)
+
+        ax.set_title("Training Progression")
+        ax.set_xlabel("Checkpoint")
+        ax.set_ylabel("Average Reward")
+        ax.legend()
+        ax.grid(True)
+
+        save_fig(fig, name="training_progression.png", directory=eval_dir)
 

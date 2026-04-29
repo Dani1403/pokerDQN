@@ -48,16 +48,16 @@ def main():
 
     checkpoint_dirs = {
          "poker_dqn_1": "checkpoints/poker_dqn_1_20260416_155300_916856",
-         #"poker_dqn_2": "checkpoints/poker_dqn_2_20260107_173558_609746",
-         #"poker_dqn_3": "checkpoints/poker_dqn_3_20260107_173558_609746",
-         #"poker_dqn_4": "checkpoints/poker_dqn_4_20260107_173558_609746",
+         "poker_dqn_2": "checkpoints/poker_dqn_2_20260416_155300_916856",
+         "poker_dqn_3": "checkpoints/poker_dqn_3_20260416_155300_916856",
+         "poker_dqn_4": "checkpoints/poker_dqn_4_20260416_155300_916856",
     }
     env.close()
     
     eval_checkpoint_dir(checkpoint_dirs=checkpoint_dirs,
-                            n_workers_per_lineup=5, n_tournaments_per_worker=10_000)
+                            n_workers_per_lineup=10, n_tournaments_per_worker=1_000)
 
-if __name__ == "__main__":
+if __name__ == "__main__":  
     #pr = cProfile.Profile()
     #pr.enable()
     main()
