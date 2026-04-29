@@ -66,7 +66,7 @@ def plot_results(rewards_per_tournament, agents, n_tournaments, window_size, ax)
             smoothed = moving_average(rewards, window_size)
             x_values = range(window_size - 1, window_size - 1 + len(smoothed))
 
-        ax.plot(x_values, smoothed, linewidth=2, label=f"Player {i + 1}")
+        ax.plot(x_values, smoothed, linewidth=1.2, label=f"Player {i + 1}")
 
     ax.set_title("Rewards per Tournament in Poker Simulation")
     ax.set_xlabel("Tournament")
@@ -257,6 +257,7 @@ def eval_checkpoint_dir(checkpoint_dirs,
     first_dir = next(iter(checkpoint_dirs.values()))
     run_id = os.path.basename(first_dir)
     eval_dir = os.path.join("eval_logs", run_id)
+    eval_dir = eval_dir + "_self_play"
     os.makedirs(eval_dir, exist_ok=True)
 
     # ---------- helper: extract training step ----------
@@ -297,7 +298,7 @@ def eval_checkpoint_dir(checkpoint_dirs,
         lineups = {"self_play": agents}
 
         eval_name = ckpt.replace(".pt", "self_play")
-        eval_dir = eval_dir + "_self_play"
+       
 
         results = parallel_eval(
             lineups=lineups,
