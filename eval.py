@@ -228,7 +228,6 @@ def parallel_eval(lineups, eval_name, eval_dir, n_workers_per_lineup=2, n_tourna
     #         rewards_per_tournament=rewards,
     #         agents=agent_names,
     #         n_tournaments=len(rewards),
-    #         window_size=min(200, max(50,len(rewards)//20)),
     #         ax=ax,
     #     )
     #     ax.set_title(f"Evaluation against {lineup_name} lineup")
@@ -241,90 +240,121 @@ def parallel_eval(lineups, eval_name, eval_dir, n_workers_per_lineup=2, n_tourna
 
     return dict(final_results)
 
-def eval_checkpoint_dir(checkpoint_dirs, n_workers_per_lineup = 2, n_tournaments_per_worker=1000):
-    # extract timestamp and create eval dir
+
+def eval_checkpoint_dir(checkpoint_dirs,
+                        n_workers_per_lineup=2,
+                        n_tournaments_per_worker=1000):
+
     first_dir = next(iter(checkpoint_dirs.values()))
-    # we have dqn1_timestamp, extract timestamp and set eval dir to be eval_logs/timestamp
     run_id = os.path.basename(first_dir)
-    #run_id = "_".join(run_id.split("_")[1:])  # remove agent name
     eval_dir = os.path.join("eval_logs", run_id)
     os.makedirs(eval_dir, exist_ok=True)
 
-    #collect checkpoints per agent
+    # ---------- helper: extract training step ----------
+    def extract_step(name):
+        if "final" in name:
+            return float('inf')  # ensure final is last
+        parts = name.replace(".pt", "").split("_")
+        return int(parts[-1])  # last part = step number
+
+    # ---------- collect checkpoints ----------
     ckpts_per_agent = {}
     for agent_name, ckpt_dir in checkpoint_dirs.items():
-        ckpts = sorted(f for f in os.listdir(ckpt_dir) if f.endswith(".pt"))
+        ckpts = [f for f in os.listdir(ckpt_dir) if f.endswith(".pt")]
+        ckpts = sorted(ckpts, key=extract_step)
         ckpts_per_agent[agent_name] = ckpts
 
-    #evaluate common checkpoints
-    common_ckpts = set.intersection(
-        *(set(v) for v in ckpts_per_agent.values()))
-    common_ckpts = sorted(common_ckpts)
+    common_ckpts = set.intersection(*(set(v) for v in ckpts_per_agent.values()))
+    common_ckpts = sorted(common_ckpts, key=extract_step)
 
-    #common_ckpts = common_ckpts[::5]
+    print(f"[EVAL CHECKPOINTS] Found {len(common_ckpts)} checkpoints")
 
-    print(f"[EVAL CHECKPOINTS] Found {len(common_ckpts)} common checkpoints")
-
+    # ---------- storage ----------
     results_over_time = {agent_name: [] for agent_name in checkpoint_dirs.keys()}
+    final_rewards = None
 
-
+    # ---------- evaluation loop ----------
     for ckpt in common_ckpts:
-        print(f"[EVAL CHECKPOINTS] Evaluating checkpoint {ckpt}")
+        print(f"[EVAL CHECKPOINTS] Evaluating {ckpt}")
+
         agents = []
         for agent_name, ckpt_dir in checkpoint_dirs.items():
-            agent_spec = {
+            agents.append({
                 'type': Poker_DQN,
                 'model_path': os.path.join(ckpt_dir, ckpt),
                 'name': agent_name
-            }
-            agents.append(agent_spec)
-        all_in_pair_lineup = agents.copy()
-        random_lineup = agents.copy()
-        while len(all_in_pair_lineup) < 4:
-            all_in_pair_lineup.append({
-                'type': AllInPairAgent,
-                'name': f"AllInPair_{len(agents)+1}"
             })
-            random_lineup.append({
-                'type': RandomAllInFoldAgent,
-                'name': f"Random_{len(random_lineup)+1}"
-            })
-        assert len(all_in_pair_lineup) == 4, "Lineup must have 4 agents"
-        assert len(random_lineup) == 4, "Lineup must have 4 agents" 
-        #assert len(agents) == 4, "Lineup must have 4 agents"
-        lineups = {
-            "self_play": agents
-                   } 
-        eval_name = ckpt.replace(".pt", "self_play")
+
+        lineups = {"self_play": agents}
+
         results = parallel_eval(
             lineups=lineups,
-            eval_name=eval_name,
+            eval_name=ckpt,
             eval_dir=eval_dir,
             n_workers_per_lineup=n_workers_per_lineup,
             n_tournaments_per_worker=n_tournaments_per_worker
         )
 
+        rewards = list(results.values())[0]
+        final_rewards = rewards  # keep last checkpoint
 
-        rewards = list(results.values())[0]  # since 1 lineup
         reward_per_agent = np.array(rewards).T
-
         avg_rewards = reward_per_agent.mean(axis=1)
 
         for i, agent_name in enumerate(checkpoint_dirs.keys()):
             results_over_time[agent_name].append(avg_rewards[i])
 
-        # ---- FINAL PLOT (cumulative over checkpoints) ----
-        fig, ax = plt.subplots(figsize=(10, 6))
+    # =====================================
+    # FINAL PLOT + TABLE
+    # =====================================
 
-        for agent_name, values in results_over_time.items():
-            cum_avg = cumulative_average(values)
-            ax.plot(cum_avg, label=agent_name, linewidth=2)
+    fig, ax = plt.subplots(figsize=(12, 7))
 
-        ax.set_title("Cumulative Performance over Training 5x500 tournaments by cp")
-        ax.set_xlabel("Checkpoint")
-        ax.set_ylabel("Cumulative Average Reward")
-        ax.legend()
-        ax.grid(True)
+    agent_names = list(results_over_time.keys())
+    final_avg_values = []
 
-        save_fig(fig, name="training_progression_cumulative_5x500.png", directory=eval_dir)
+    # ---- x-axis = actual training steps ----
+    x_values = [extract_step(ckpt) for ckpt in common_ckpts]
+
+    for agent_name in agent_names:
+        values = results_over_time[agent_name]
+        cum_avg = cumulative_average(values)
+
+        final_avg_values.append(cum_avg[-1])
+
+        ax.plot(x_values, cum_avg, label=agent_name, linewidth=2)
+
+    ax.set_title("Cumulative Performance over Training")
+    ax.set_xlabel("Training Steps")
+    ax.set_ylabel("Cumulative Average Reward")
+    ax.grid(True)
+
+    # ---- placements from final checkpoint ----
+    placement_summary = placements(final_rewards)
+
+    # ---- build table ----
+    table_data = []
+    for i, agent_name in enumerate(agent_names):
+        table_data.append([
+            agent_name,
+            f"{final_avg_values[i]:.3f}",
+            placement_summary[i].replace(" ", "\n")
+        ])
+
+    table = plt.table(
+        cellText=table_data,
+        colLabels=["Agent", "Final Avg Reward", "Placements"],
+        loc='bottom',
+        cellLoc='center'
+    )
+
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1, 1.5)
+
+    plt.subplots_adjust(bottom=0.3)
+
+    ax.legend()
+
+    save_fig(fig, name="training_progression_with_table.png", directory=eval_dir)
 
