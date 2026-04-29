@@ -324,6 +324,7 @@ def eval_checkpoint_dir(checkpoint_dirs,
     ax.set_title("Cumulative Performance over Training")
     ax.set_xlabel("Training Steps (millions)")
     ax.set_ylabel("Cumulative Average Reward")
+    ax.legend(loc="best")
     ax.grid(True)
 
     
