@@ -305,56 +305,28 @@ def eval_checkpoint_dir(checkpoint_dirs,
             results_over_time[agent_name].append(avg_rewards[i])
 
     # =====================================
-    # FINAL PLOT + TABLE
+    # FINAL PLOT
     # =====================================
 
     fig, ax = plt.subplots(figsize=(12, 7))
 
     agent_names = list(results_over_time.keys())
-    final_avg_values = []
 
     # ---- x-axis = actual training steps ----
-    x_values = [extract_step(ckpt) for ckpt in common_ckpts]
-
+    x_values = [extract_step(c) / 1e6 for c in common_ckpts]
     for agent_name in agent_names:
         values = results_over_time[agent_name]
         cum_avg = cumulative_average(values)
 
-        final_avg_values.append(cum_avg[-1])
 
-        ax.plot(x_values, cum_avg, label=agent_name, linewidth=2)
+        ax.plot(x_values, cum_avg, label=f"{agent_name} ({cum_avg[-1]:.3f})", linewidth=2)
 
     ax.set_title("Cumulative Performance over Training")
-    ax.set_xlabel("Training Steps")
+    ax.set_xlabel("Training Steps (millions)")
     ax.set_ylabel("Cumulative Average Reward")
     ax.grid(True)
 
-    # ---- placements from final checkpoint ----
-    placement_summary = placements(final_rewards)
+    
 
-    # ---- build table ----
-    table_data = []
-    for i, agent_name in enumerate(agent_names):
-        table_data.append([
-            agent_name,
-            f"{final_avg_values[i]:.3f}",
-            placement_summary[i].replace(" ", "\n")
-        ])
-
-    table = plt.table(
-        cellText=table_data,
-        colLabels=["Agent", "Final Avg Reward", "Placements"],
-        loc='bottom',
-        cellLoc='center'
-    )
-
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    table.scale(1, 1.5)
-
-    plt.subplots_adjust(bottom=0.3)
-
-    ax.legend()
-
-    save_fig(fig, name="training_progression_with_table.png", directory=eval_dir)
+    save_fig(fig, name="training_progression_2500.png", directory=eval_dir)
 
