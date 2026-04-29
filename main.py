@@ -44,14 +44,14 @@ def main():
         env), AllInPairAgent(env), AllInPairAgent(env)]
     N_total = 10_000_000
     learn_size = 100_000
-    checkpoint_dirs = train_and_save(env, N_total=N_total, learn_size=learn_size,training_lineup=SELF_PLAY_LINEUP, checkpoint_root="checkpoints")
+    #checkpoint_dirs = train_and_save(env, N_total=N_total, learn_size=learn_size,training_lineup=SELF_PLAY_LINEUP, checkpoint_root="checkpoints")
 
-    # checkpoint_dirs = {
-    #     "poker_dqn_1": "checkpoints/poker_dqn_1_20260107_173558_609746",
-    #     "poker_dqn_2": "checkpoints/poker_dqn_2_20260107_173558_609746",
-    #     "poker_dqn_3": "checkpoints/poker_dqn_3_20260107_173558_609746",
-    #     "poker_dqn_4": "checkpoints/poker_dqn_4_20260107_173558_609746",
-    # }
+    checkpoint_dirs = {
+         "poker_dqn_1": "checkpoints/poker_dqn_1_20260416_155300_916856",
+         #"poker_dqn_2": "checkpoints/poker_dqn_2_20260107_173558_609746",
+         #"poker_dqn_3": "checkpoints/poker_dqn_3_20260107_173558_609746",
+         #"poker_dqn_4": "checkpoints/poker_dqn_4_20260107_173558_609746",
+    }
     env.close()
     
     eval_checkpoint_dir(checkpoint_dirs=checkpoint_dirs,
