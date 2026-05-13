@@ -361,3 +361,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# macOS metadata
+.DS_Store
+
+# Claude Code local config
+.claude/

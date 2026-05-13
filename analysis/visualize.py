@@ -1,10 +1,13 @@
 import numpy as np
+import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import random
 from collections import defaultdict
 from clubs.poker.card import Card
 from poker_dqn import Poker_DQN
 from dqn_agent import DQNAgent
-import simulation 
+import simulation
 
 RANKS = "23456789TJQKA"
 SUITS = "SHDC"
