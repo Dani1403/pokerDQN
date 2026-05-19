@@ -1,4 +1,4 @@
-from eval import eval_checkpoint_dir
+from eval import eval_checkpoint_dir, eval_final_vs_baselines
 from training import train_and_save
 from dqn_agent import DQNAgent
 from poker_agents import *
@@ -60,7 +60,8 @@ def main():
 if __name__ == "__main__":  
     #pr = cProfile.Profile()
     #pr.enable()
-    main()
+    #main()
+    eval_final_vs_baselines()
     #pr.disable()
     #s = io.StringIO()
     #pstats.Stats(pr, stream=s).strip_dirs().sort_stats("cumtime").print_stats(40)
