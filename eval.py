@@ -348,3 +348,193 @@ def eval_checkpoint_dir(checkpoint_dirs,
 
     save_fig(fig, name="training_progression_2500.png", directory=eval_dir)
 
+def placement_percentages(rewards_per_tournament, player_idx=0):
+
+    arr = np.array(rewards_per_tournament)
+
+    ranks = np.argsort(
+        np.argsort(-arr, axis=1),
+        axis=1
+    ) + 1
+
+    player_ranks = ranks[:, player_idx]
+
+    percentages = []
+
+    for place in range(1, arr.shape[1] + 1):
+        pct = np.mean(player_ranks == place) * 100
+        percentages.append(pct)
+
+    return percentages
+
+
+def eval_final_vs_baselines():
+
+    checkpoint = "checkpoints/poker_dqn_1_20260416_155300_916856/final.pt"
+
+    # -----------------------------
+    # lineups
+    # -----------------------------
+
+    lineups = {
+
+        "Random": [
+            {
+                "type": Poker_DQN,
+                "model_path": checkpoint,
+                "name": "final.pt"
+            },
+            {
+                "type": RandomAllInFoldAgent,
+                "name": "Random_1"
+            },
+            {
+                "type": RandomAllInFoldAgent,
+                "name": "Random_2"
+            },
+            {
+                "type": RandomAllInFoldAgent,
+                "name": "Random_3"
+            },
+        ],
+
+        "All In Pair": [
+            {
+                "type": Poker_DQN,
+                "model_path": checkpoint,
+                "name": "final.pt"
+            },
+            {
+                "type": AllInPairAgent,
+                "name": "Pair_1"
+            },
+            {
+                "type": AllInPairAgent,
+                "name": "Pair_2"
+            },
+            {
+                "type": AllInPairAgent,
+                "name": "Pair_3"
+            },
+        ],
+
+        "Suited": [
+            {
+                "type": Poker_DQN,
+                "model_path": checkpoint,
+                "name": "final.pt"
+            },
+            {
+                "type": SuitedAgent,
+                "name": "Suited_1"
+            },
+            {
+                "type": SuitedAgent,
+                "name": "Suited_2"
+            },
+            {
+                "type": SuitedAgent,
+                "name": "Suited_3"
+            },
+        ],
+
+        "All In High": [
+            {
+                "type": Poker_DQN,
+                "model_path": checkpoint,
+                "name": "final.pt"
+            },
+            {
+                "type": AllInHighCardAgent,
+                "name": "High_1"
+            },
+            {
+                "type": AllInHighCardAgent,
+                "name": "High_2"
+            },
+            {
+                "type": AllInHighCardAgent,
+                "name": "High_3"
+            },
+        ],
+
+        "Two High": [
+            {
+                "type": Poker_DQN,
+                "model_path": checkpoint,
+                "name": "final.pt"
+            },
+            {
+                "type": TwoHighAgent,
+                "name": "TwoHigh_1"
+            },
+            {
+                "type": TwoHighAgent,
+                "name": "TwoHigh_2"
+            },
+            {
+                "type": TwoHighAgent,
+                "name": "TwoHigh_3"
+            },
+        ],
+    }
+
+    # -----------------------------
+    # parallel evaluation
+    # -----------------------------
+
+    results = parallel_eval(
+        lineups=lineups,
+        eval_name="final_vs_baselines",
+        eval_dir="eval_logs",
+        n_workers_per_lineup=8,
+        n_tournaments_per_worker=2500,
+    )
+
+    # total = 20k tournaments per baseline
+    # 5 baselines -> 100k tournaments total
+
+    # -----------------------------
+    # plot placements
+    # -----------------------------
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+
+    places = [1, 2, 3, 4]
+
+    for lineup_name, rewards in results.items():
+
+        percentages = placement_percentages(
+            rewards,
+            player_idx=0
+        )
+
+        ax.plot(
+            places,
+            percentages,
+            marker='o',
+            linewidth=3,
+            label=lineup_name
+        )
+
+    ax.set_xticks(places)
+    ax.set_xticklabels(["1st", "2nd", "3rd", "4th"])
+
+    ax.set_ylabel("Percentage")
+    ax.set_xlabel("Placement")
+
+    ax.set_title("final.pt Placement Distribution vs Baselines")
+
+    ax.grid(True, alpha=0.3)
+
+    ax.legend()
+
+    plt.tight_layout()
+
+    save_fig(
+        fig,
+        name="final_vs_baselines_placements.png",
+        directory="eval_logs"
+    )
+
+    plt.show()
